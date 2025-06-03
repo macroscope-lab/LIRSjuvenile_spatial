@@ -21,5 +21,5 @@ n_juv(nov2022) ~ n_adu(nov2022) + R(nov2022) + D(nov2022) + tile_recruitment(jan
 Trying SOAP to accoun for island boundary - SOAP should be well integrated into mgcv (gams), might be trickier to implement in brms but not impossible.
 
 ### Ideally also showing 
-Realized juvenile settlement areas VS overall means and densities in RR by clipping areas around each juvenile and get R, D, n_adu, n_juvdensities and comparing those distributions to overal means.
+Realized juvenile settlement areas VS overall means and densities in RR by clipping areas around each juvenile and get R, D, n_adu, n_juv densities and comparing those distributions to overal means.
 
