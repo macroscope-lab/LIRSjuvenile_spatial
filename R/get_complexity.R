@@ -1,18 +1,12 @@
 ##get complexity ###
-#  *modified from Torres-Pulliza et al.2020*  # 
+# get complexity values for grid areas
 
 ## upload libraries  #install them first in case you don't have them already!
 library(raster)
 library(parallel)
-library(rgdal)
+library(sf)
 library(sp)
-
-## upload all this functions below
-
-# Functions and packages
-
-library(plot3D)
-library(sgeostat)
+library(habtools)
 
 # Load reference tif
 ref <-  raster("data_raw/TB17.tif")
