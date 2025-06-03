@@ -1,15 +1,57 @@
 ##get complexity ###
-# get complexity values for grid areas
+# get complexity values for grids of different sizes
 
-## upload libraries  #install them first in case you don't have them already!
-library(raster)
+## upload libraries
+library(terra)
 library(parallel)
 library(sf)
-library(sp)
+#library(sp)
 library(habtools)
 
 # Load reference tif
 ref <-  raster("data_raw/TB17.tif")
+crs(ref)
+
+# Coordinate Reference System:
+#   Deprecated Proj.4 representation:
+#   +proj=tmerc +lat_0=-14.6989736557007 +lon_0=145.448257446289 +k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs 
+# WKT2 2019 representation:
+#   PROJCRS["unknown",
+#           BASEGEOGCRS["unknown",
+#                       DATUM["World Geodetic System 1984",
+#                             ELLIPSOID["WGS 84",6378137,298.257223563,
+#                                       LENGTHUNIT["metre",1]],
+#                             ID["EPSG",6326]],
+#                       PRIMEM["Greenwich",0,
+#                              ANGLEUNIT["degree",0.0174532925199433],
+#                              ID["EPSG",8901]]],
+#           CONVERSION["unknown",
+#                      METHOD["Transverse Mercator",
+#                             ID["EPSG",9807]],
+#                      PARAMETER["Latitude of natural origin",-14.6989736557007,
+#                                ANGLEUNIT["degree",0.0174532925199433],
+#                                ID["EPSG",8801]],
+#                      PARAMETER["Longitude of natural origin",145.448257446289,
+#                                ANGLEUNIT["degree",0.0174532925199433],
+#                                ID["EPSG",8802]],
+#                      PARAMETER["Scale factor at natural origin",1,
+#                                SCALEUNIT["unity",1],
+#                                ID["EPSG",8805]],
+#                      PARAMETER["False easting",0,
+#                                LENGTHUNIT["metre",1],
+#                                ID["EPSG",8806]],
+#                      PARAMETER["False northing",0,
+#                                LENGTHUNIT["metre",1],
+#                                ID["EPSG",8807]]],
+#           CS[Cartesian,2],
+#           AXIS["(E)",east,
+#                ORDER[1],
+#                LENGTHUNIT["metre",1,
+#                           ID["EPSG",9001]]],
+#           AXIS["(N)",north,
+#                ORDER[2],
+#                LENGTHUNIT["metre",1,
+#                           ID["EPSG",9001]]]] 
 
 # Reef records
 
@@ -19,7 +61,6 @@ files <- unique(gsub("\\.tfw|\\.tif", "", files))
 #
 ## run this loop that for each record gets heigth variation at different scales (necessary for computing D)
 store05 <- data.frame()
-store25 <- data.frame()
 store1 <- data.frame()
 store2 <- data.frame()
 files
@@ -27,11 +68,10 @@ files
 # read coords of the centers and transpose to right projection
 
 coords <- read.csv("data_raw/RR_gps_coords.csv")
-Ccoord <- coords[,c("x", "y")]
-c2 <- SpatialPoints(Ccoord)
-N3 <- raster("data_raw/records/N319.tif")
-c2@proj4string <- crs(N3)
-c <- spTransform(c2, CRS("+proj=tmerc +lat_0=-14.6989736557007 +lon_0=145.448257446289 +k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"))
+c2 <- st_as_sf(coords,
+               coords = c("x", "y"),
+               crs = 4326)
+c <- st_transform(c2, CRS("+proj=tmerc +lat_0=-14.6989736557007 +lon_0=145.448257446289 +k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"))
 coords_tr<- as.data.frame(c)
 Ccoords_tr<- cbind(coords$rec, coords$Site, coords_tr)
 names(Ccoords_tr) <- c("rec","site","x","y")
