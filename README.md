@@ -8,9 +8,13 @@ Code and analysis for the paper on juvenile recruitment patterns and their links
 
 ## Variables and hyphothesis
 Adult density: competition or facilitation? (+ or - effects)
+
 Rugosity: hooks and crannies are nice habitats for a coral (+)
+
 Fractal dimension: a fractal surface increases friction and facilitate initial larval settlement (+)
+
 Spatial autocorrelation: patterns are similar for same sites and closer reefs
+
 Settlement tile recruit densities: the more recruit te more juveniles found (+)
 
 ## Model and hyphothesis
