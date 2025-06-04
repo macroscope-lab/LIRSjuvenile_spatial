@@ -7,15 +7,37 @@ library(sf)
 library(GISTools) #count.poly()
 library(RColorBrewer)
 
+
+## read annotations ####
+ann <- st_read("data_raw/annotations/lizard_rr_annotations_2022_nov.shp")
+
+# Extract coordinates
+coords <- st_coordinates(ann)
+points_df <- st_drop_geometry(ann)
+# Combine coordinates with attributes
+coords_df <- cbind(points_df, coords)
+
+# Group by 'type' and compute mean X/Y
+centroids_df <- coords_df %>%
+  group_by(Site) %>%
+  summarize(
+    xc = mean(X),
+    yc = mean(Y),
+    .groups = "drop"
+  )
+
+centroids_sf <- st_as_sf(centroids_df, coords = c("xc", "yc"), crs = st_crs(ann))
+
+
 ## read coords and make grid files
 
-coords <- read.csv("data_raw/sites.csv")
-c2 <- st_as_sf(coords,
-               coords = c("x", "y"),
-               crs = 4326)
-c <- st_transform(c2, CRS("+proj=tmerc +lat_0=-14.6989736557007 +lon_0=145.448257446289 +k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"))
-coords <- st_coordinates(c)
-coord_t <- as.data.frame(cbind(site =c$Site, x = as.numeric(coords[,1]), y = as.numeric (coords[,2])))
+# coords <- read.csv("data_raw/sites.csv")
+# c2 <- st_as_sf(coords,
+#                coords = c("x", "y"),
+#                crs = 4326)
+# c <- st_transform(c2, CRS("+proj=tmerc +lat_0=-14.6989736557007 +lon_0=145.448257446289 +k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"))
+coords <- st_coordinates(centroids_sf)
+coord_t <- as.data.frame(cbind(site =centroids_sf$Site, x = as.numeric(coords[,1]), y = as.numeric (coords[,2])))
 coord_t$x <- as.numeric(coord_t$x)
 coord_t$y <- as.numeric(coord_t$y)
 # get bottom left coords of main square
@@ -116,9 +138,6 @@ for (site in coord_t$site) {
   }
 }
 
-## read annotations ####
-ann <- st_read("data_raw/annotations/lizard_rr_annotations_2022_nov.shp")
-
 
 ## prepare files fo poly.count ####
 
@@ -126,12 +145,47 @@ c4 <- st_as_sf(grid4[,c("site","rep", "xc", "yc")],
                coords = c("xc", "yc"))
 st_crs(c4) <- st_crs(ann)
 
-squares4 <- st_buffer(c4, dist = 2, endCapStyle = "SQUARE") %>%
-  st_cast("POLYGON") 
+# Function to create a square polygon centered on a point
+make_square <- function(pt, size) {
+  x <- st_coordinates(pt)[1]
+  y <- st_coordinates(pt)[2]
+  half <- size / 2
+  coords <- matrix(c(
+    x - half, y - half,
+    x + half, y - half,
+    x + half, y + half,
+    x - half, y + half,
+    x - half, y - half
+  ), ncol = 2, byrow = TRUE)
+  st_polygon(list(coords))
+}
+
+# Apply to all points
+squares_geom <- lapply(st_geometry(c4), make_square, size = 4)
+
+squares_sf <- st_sf(geometry = st_sfc(squares_geom, crs = st_crs(c4)))
+squares_sf <- cbind(c4, geometry = st_geometry(squares_sf))
+
+squares <- st_buffer(c4, dist = 2, endCapStyle = "SQUARE") %>%
+  st_cast("POLYGON")
+
+filtered_points <- ann %>% filter(Site == "no_mans_land")
+filtered_squares <- squares %>% filter(site == "no_mans_land")
+
+ggplot() +
+  geom_sf(data = filtered_points, color = "red", size = 2) +
+  geom_sf(data = filtered_squares, fill = NA, color = "blue") +
+  theme_minimal() +
+  labs(title = "Points and Centered Square Polygons")
 
 
 ### append counts on grid ####
-grid4$countAdults <- poly.counts(ann,squares4)
+grid4$countAdults <- poly.counts(ann,squares)
 write.csv(grid4, "data/grid4_counts.csv", row.names = FALSE)
 
 
+
+
+###
+plot(ann[ann$Site == "north_of_paradise",])
+plot(squares4)
