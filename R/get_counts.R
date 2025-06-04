@@ -157,8 +157,8 @@ st_crs(c1) <- st_crs(ann)
 squares1 <- st_buffer(c1, dist = 0.5, endCapStyle = "SQUARE") %>%
   st_cast("POLYGON")
 
-grid1$countAdults <- poly.counts(ann_adu,squares1)
-grid1$countJuv <- poly.counts(ann_juv,squares1)
+grid1$n_adu <- poly.counts(ann_adu,squares1)
+grid1$n_juv <- poly.counts(ann_juv,squares1)
 write.csv(grid1, "data/grid1_counts.csv", row.names = FALSE)
 
 
@@ -170,12 +170,12 @@ st_crs(c2) <- st_crs(ann)
 squares2 <- st_buffer(c2, dist = 1, endCapStyle = "SQUARE") %>%
   st_cast("POLYGON")
 
-grid2$countAdults <- poly.counts(ann_adu,squares2)
-grid2$countJuv <- poly.counts(ann_juv,squares2)
+grid2$n_adu <- poly.counts(ann_adu,squares2)
+grid2$n_juv <- poly.counts(ann_juv,squares2)
 write.csv(grid2, "data/grid2_counts.csv", row.names = FALSE)
 
 
-#grid4
+grid4
 c4 <- st_as_sf(grid4[,c("site","rep", "xc", "yc")],
                coords = c("xc", "yc"))
 st_crs(c4) <- st_crs(ann)
@@ -183,33 +183,29 @@ st_crs(c4) <- st_crs(ann)
 squares4 <- st_buffer(c4, dist = 2, endCapStyle = "SQUARE") %>%
   st_cast("POLYGON")
 
-grid4$countAdults <- poly.counts(ann_adu,squares4)
-grid4$countJuv <- poly.counts(ann_juv,squares4)
+grid4$n_adu <- poly.counts(ann_adu,squares4)
+grid4$n_juv <- poly.counts(ann_juv,squares4)
 write.csv(grid4, "data/grid4_counts.csv", row.names = FALSE)
 
-## some plots ####
 
-filtered_points <- ann %>% filter(Site == "cooks_path")
-filtered_squares1 <- squares1 %>% filter(site == "cooks_path")
-filtered_squares2 <- squares2 %>% filter(site == "cooks_path")
-filtered_squares4 <- squares4 %>% filter(site == "cooks_path")
+## plots ####
 
-ggplot() +
-  geom_sf(data = filtered_points, color = "black") +
-  geom_sf(data = filtered_squares1, fill = NA, color = "gold", linewidth = 2) +
-  geom_sf(data = filtered_squares2, fill = NA, color = "orange", linewidth = 2) +
-  geom_sf(data = filtered_squares4, fill = NA, color = "red", linewidth = 2) +
-  theme_minimal() +
-  ggtitle("cooks_path")
-
-
-filtered_points <- ann %>% filter(Site == "north_reef_1")
-filtered_squares <- squares %>% filter(site == "north_reef_1")
-
-ggplot() +
-  geom_sf(data = filtered_points, color = "black") +
-  geom_sf(data = filtered_squares, fill = NA, color = "red", linewidth = 2) +
-  theme_minimal() +
-  ggtitle("north_reef_1")
-
-
+for (rr in unique(ann$Site)) {
+  filtered_squares1 <- squares1 %>% filter(site == rr)
+  filtered_squares2 <- squares2 %>% filter(site == rr)
+  filtered_squares4 <- squares4 %>% filter(site == rr)
+  
+  p <- ggplot() +
+    geom_sf(data = ann, color = "black") +
+    geom_sf(data = ann_juv, color = "blue") +
+    geom_sf(data = filtered_squares1,fill = NA,color = "gold",linewidth = 1) +
+    geom_sf(data = filtered_squares2,fill = NA,color = "orange",linewidth = 1) +
+    geom_sf(data = filtered_squares4,fill = NA,color = "red",linewidth = 1) +
+    theme_minimal() +
+    ylim (ext(filtered_squares4)$ymin - 3, ext(filtered_squares4)$ymax + 3) +
+    xlim(ext(filtered_squares4)$xmin - 3, ext(filtered_squares4)$xmax + 3) +
+    ggtitle(rr)
+  
+  ggsave(paste0("figures/grids/",rr,"-ann_grid.png"), 
+         plot = p, width = 6, height = 7, dpi = 300)
+}

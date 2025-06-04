@@ -5,7 +5,6 @@
 library(terra)
 library(parallel)
 library(sf)
-#library(sp)
 library(habtools)
 
 # Load reference tif
@@ -60,12 +59,27 @@ files <- unique(gsub("\\.tfw|\\.tif", "", files))
 #files <- files[c(1,3,5,7,9,12,14,16,18)]
 #
 ## run this loop that for each record gets heigth variation at different scales (necessary for computing D)
-store05 <- data.frame()
 store1 <- data.frame()
 store2 <- data.frame()
+store4 <- data.frame()
 files
 
 # read coords of the centers and transpose to right projection
+
+rr <- rast("data_raw/records/CP.tif")
+rrt <- rast("CPt.tif")
+
+rr_repr <- project(rr, st_crs(ann)$wkt)
+rrt_repr <- project(rrt, st_crs(c)$wkt)
+e <- ext(rr_repr)
+rrsq <- dem_crop(rr_repr, 
+                 x0 = (e$xmin + e$xmax) / 2, 
+                 y0 = (e$ymin + e$ymax) / 2,
+                 L = 8)
+plot(rr)
+points(centroids_sf)
+c_deg <- st_transform(centroids_sf, st_crs(rrt))
+points(c_deg)
 
 coords <- read.csv("data_raw/RR_gps_coords.csv")
 c2 <- st_as_sf(coords,
@@ -378,3 +392,68 @@ plot(store2$D~tab2$D_theory,xlab="D from R_theory", ylab="D from R",)
 plot(store2$H~tab2$H)
 
 ## Fit more quadrats
+
+
+
+
+
+
+
+
+
+
+### automate points ###
+
+input_raster <- "data_raw/records/CP.tif"
+points_file <- "data_raw/2022Nov_RR_alignmentpoints/202211_cookspath_aligned.tif.points"
+temp_output <- "temp_with_gcps.tif"
+final_output <- "data_raw/records/CPt.tif"
+
+
+lines <- readLines(points_file)
+
+
+gcps <- lapply(lines, function(line) {
+  # Trim and skip empty lines
+  line <- trimws(line)
+  if (nchar(line) == 0) return(NULL)
+  
+  # Try to parse numeric values
+  vals <- suppressWarnings(as.numeric(strsplit(line, ",")[[1]]))
+  
+  # Check that there are at least 5 values and the 5th is 1 (enabled GCP)
+  if (length(vals) >= 5 && !any(is.na(vals)) && vals[5] == 1) {
+    return(c("-gcp", vals[1], vals[2], vals[3], vals[4]))
+  } else {
+    return(NULL)
+  }
+})
+
+# Flatten into a single character vector
+gcp_args <- unlist(gcps)
+
+# Check output
+print(gcp_args)
+
+cmd_translate <- c(
+  "gdal_translate",
+  "-of", "GTiff",
+  gcp_args,
+  shQuote(input_raster),
+  shQuote(temp_output)
+)
+
+system(paste(cmd_translate, collapse = " "))
+
+# Warp to georeference
+cmd_warp <- paste(
+  "gdalwarp",
+  "-tps",                         # Thin Plate Spline
+  "-r bilinear",                  # Resampling method
+  "-overwrite",                   # Overwrite output if exists
+  shQuote(temp_output),
+  shQuote(final_output)
+)
+
+system(cmd_warp)
+
