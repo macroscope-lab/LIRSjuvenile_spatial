@@ -21,8 +21,8 @@ coords_df <- cbind(points_df, coords)
 centroids_df <- coords_df %>%
   group_by(Site) %>%
   summarize(
-    xc = mean(X),
-    yc = mean(Y),
+    xc = min(X) + (max(X)-min(X))/2,
+    yc = min(Y) + (max(Y)-min(Y))/2,
     .groups = "drop"
   )
 
@@ -145,39 +145,17 @@ c4 <- st_as_sf(grid4[,c("site","rep", "xc", "yc")],
                coords = c("xc", "yc"))
 st_crs(c4) <- st_crs(ann)
 
-# Function to create a square polygon centered on a point
-make_square <- function(pt, size) {
-  x <- st_coordinates(pt)[1]
-  y <- st_coordinates(pt)[2]
-  half <- size / 2
-  coords <- matrix(c(
-    x - half, y - half,
-    x + half, y - half,
-    x + half, y + half,
-    x - half, y + half,
-    x - half, y - half
-  ), ncol = 2, byrow = TRUE)
-  st_polygon(list(coords))
-}
-
-# Apply to all points
-squares_geom <- lapply(st_geometry(c4), make_square, size = 4)
-
-squares_sf <- st_sf(geometry = st_sfc(squares_geom, crs = st_crs(c4)))
-squares_sf <- cbind(c4, geometry = st_geometry(squares_sf))
-
 squares <- st_buffer(c4, dist = 2, endCapStyle = "SQUARE") %>%
   st_cast("POLYGON")
 
-filtered_points <- ann %>% filter(Site == "no_mans_land")
-filtered_squares <- squares %>% filter(site == "no_mans_land")
+filtered_points <- ann %>% filter(Site == "horseshoe")
+filtered_squares <- squares %>% filter(site == "horseshoe")
 
 ggplot() +
-  geom_sf(data = filtered_points, color = "red", size = 2) +
-  geom_sf(data = filtered_squares, fill = NA, color = "blue") +
+  geom_sf(data = filtered_points, color = "black") +
+  geom_sf(data = filtered_squares, fill = NA, color = "red", linewidth = 2) +
   theme_minimal() +
-  labs(title = "Points and Centered Square Polygons")
-
+  ggtitle("horseshoe")
 
 ### append counts on grid ####
 grid4$countAdults <- poly.counts(ann,squares)
