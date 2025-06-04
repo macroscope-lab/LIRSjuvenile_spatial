@@ -10,12 +10,14 @@ library(RColorBrewer)
 
 ## read annotations and get site central coordinates ####
 ann<- st_read("data_raw/annotations/lizard_rr_annotations_2022_nov.shp")
+max(ann$ColonyID) #48463
 
 # some points in Vickis were labelled lagoon_1, which offset finding the centers.
 # so taking L1 from previous annotation file
 
 ann22 <- st_read("data_raw/annotations/2022_04/lizard_rr_annotations_2022_april.shp")
 ann22 <- st_transform(ann22, st_crs(ann))
+max(ann22$ColonyID) # 35179
 ann22 <- ann22 %>% filter(Site != "lagoon_1")
 ann_l1 <- ann %>% filter(Site == "lagoon_1")
 ann2 <-rbind(ann22,ann_l1) 
@@ -144,6 +146,9 @@ for (site in coord_t$site) {
 
 ## prepare files for poly.count and count dots in each square of the grids ####
 
+# split juveniles and adults
+ann_juv <- ann %>% filter(ColonyID > max(ann22$ColonyID))
+ann_adu <- ann %>% filter(ColonyID <= max(ann22$ColonyID))
 #grid1
 c1 <- st_as_sf(grid1[,c("site","rep", "xc", "yc")],
                coords = c("xc", "yc"))
@@ -152,7 +157,8 @@ st_crs(c1) <- st_crs(ann)
 squares1 <- st_buffer(c1, dist = 0.5, endCapStyle = "SQUARE") %>%
   st_cast("POLYGON")
 
-grid1$countAdults <- poly.counts(ann,squares1)
+grid1$countAdults <- poly.counts(ann_adu,squares1)
+grid1$countJuv <- poly.counts(ann_juv,squares1)
 write.csv(grid1, "data/grid1_counts.csv", row.names = FALSE)
 
 
@@ -164,7 +170,8 @@ st_crs(c2) <- st_crs(ann)
 squares2 <- st_buffer(c2, dist = 1, endCapStyle = "SQUARE") %>%
   st_cast("POLYGON")
 
-grid2$countAdults <- poly.counts(ann,squares2)
+grid2$countAdults <- poly.counts(ann_adu,squares2)
+grid2$countJuv <- poly.counts(ann_juv,squares2)
 write.csv(grid2, "data/grid2_counts.csv", row.names = FALSE)
 
 
@@ -176,7 +183,8 @@ st_crs(c4) <- st_crs(ann)
 squares4 <- st_buffer(c4, dist = 2, endCapStyle = "SQUARE") %>%
   st_cast("POLYGON")
 
-grid4$countAdults <- poly.counts(ann,squares4)
+grid4$countAdults <- poly.counts(ann_adu,squares4)
+grid4$countJuv <- poly.counts(ann_juv,squares4)
 write.csv(grid4, "data/grid4_counts.csv", row.names = FALSE)
 
 ## some plots ####
