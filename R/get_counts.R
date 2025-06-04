@@ -1,23 +1,31 @@
+### count annotations within gridded areas  
 
-library(raster)
+# upload library
+library(terra)
 library(tidyverse)
 library(sf)
-#library(rgeos)  
-#library(rgdal) 
 library(GISTools) #count.poly()
 library(RColorBrewer)
 
 
-## read annotations ####
-ann <- st_read("data_raw/annotations/lizard_rr_annotations_2022_nov.shp")
+## read annotations and get site central coordinates ####
+ann<- st_read("data_raw/annotations/lizard_rr_annotations_2022_nov.shp")
 
-# Extract coordinates
-coords <- st_coordinates(ann)
-points_df <- st_drop_geometry(ann)
-# Combine coordinates with attributes
+# some points in Vickis were labelled lagoon_1, which offset finding the centers.
+# so taking L1 from previous annotation file
+
+ann22 <- st_read("data_raw/annotations/2022_04/lizard_rr_annotations_2022_april.shp")
+ann22 <- st_transform(ann22, st_crs(ann))
+ann22 <- ann22 %>% filter(Site != "lagoon_1")
+ann_l1 <- ann %>% filter(Site == "lagoon_1")
+ann2 <-rbind(ann22,ann_l1) 
+
+# extract coordinates with features
+coords <- st_coordinates(ann2)
+points_df <- st_drop_geometry(ann2)
 coords_df <- cbind(points_df, coords)
 
-# Group by 'type' and compute mean X/Y
+# Group by 'type' and compute central x and y
 centroids_df <- coords_df %>%
   group_by(Site) %>%
   summarize(
@@ -29,13 +37,8 @@ centroids_df <- coords_df %>%
 centroids_sf <- st_as_sf(centroids_df, coords = c("xc", "yc"), crs = st_crs(ann))
 
 
-## read coords and make grid files
+# prep these to make grid files
 
-# coords <- read.csv("data_raw/sites.csv")
-# c2 <- st_as_sf(coords,
-#                coords = c("x", "y"),
-#                crs = 4326)
-# c <- st_transform(c2, CRS("+proj=tmerc +lat_0=-14.6989736557007 +lon_0=145.448257446289 +k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"))
 coords <- st_coordinates(centroids_sf)
 coord_t <- as.data.frame(cbind(site =centroids_sf$Site, x = as.numeric(coords[,1]), y = as.numeric (coords[,2])))
 coord_t$x <- as.numeric(coord_t$x)
@@ -44,7 +47,7 @@ coord_t$y <- as.numeric(coord_t$y)
 coord_t$xb <- coord_t$x-4
 coord_t$yb <- coord_t$y-4
 
-#initialise grid coordinates dataframes #####
+# prepare grid coordinates dataframes #####
 grid1 <- data.frame() #will store bottom left and central coords of each 1mx1m square replicate within each RR
 grid2 <- data.frame() #will store bottom left and central coords of each 2mx2m square replicate within each RR
 grid4 <- data.frame() #will store bottom left and central coords of each 4mx4m square replicate within each RR
@@ -139,31 +142,66 @@ for (site in coord_t$site) {
 }
 
 
-## prepare files fo poly.count ####
+## prepare files for poly.count and count dots in each square of the grids ####
 
+#grid1
+c1 <- st_as_sf(grid1[,c("site","rep", "xc", "yc")],
+               coords = c("xc", "yc"))
+st_crs(c1) <- st_crs(ann)
+
+squares1 <- st_buffer(c1, dist = 0.5, endCapStyle = "SQUARE") %>%
+  st_cast("POLYGON")
+
+grid1$countAdults <- poly.counts(ann,squares1)
+write.csv(grid1, "data/grid1_counts.csv", row.names = FALSE)
+
+
+#grid2
+c2 <- st_as_sf(grid2[,c("site","rep", "xc", "yc")],
+               coords = c("xc", "yc"))
+st_crs(c2) <- st_crs(ann)
+
+squares2 <- st_buffer(c2, dist = 1, endCapStyle = "SQUARE") %>%
+  st_cast("POLYGON")
+
+grid2$countAdults <- poly.counts(ann,squares2)
+write.csv(grid2, "data/grid2_counts.csv", row.names = FALSE)
+
+
+#grid4
 c4 <- st_as_sf(grid4[,c("site","rep", "xc", "yc")],
                coords = c("xc", "yc"))
 st_crs(c4) <- st_crs(ann)
 
-squares <- st_buffer(c4, dist = 2, endCapStyle = "SQUARE") %>%
+squares4 <- st_buffer(c4, dist = 2, endCapStyle = "SQUARE") %>%
   st_cast("POLYGON")
 
-filtered_points <- ann %>% filter(Site == "horseshoe")
-filtered_squares <- squares %>% filter(site == "horseshoe")
+grid4$countAdults <- poly.counts(ann,squares4)
+write.csv(grid4, "data/grid4_counts.csv", row.names = FALSE)
+
+## some plots ####
+
+filtered_points <- ann %>% filter(Site == "cooks_path")
+filtered_squares1 <- squares1 %>% filter(site == "cooks_path")
+filtered_squares2 <- squares2 %>% filter(site == "cooks_path")
+filtered_squares4 <- squares4 %>% filter(site == "cooks_path")
+
+ggplot() +
+  geom_sf(data = filtered_points, color = "black") +
+  geom_sf(data = filtered_squares1, fill = NA, color = "gold", linewidth = 2) +
+  geom_sf(data = filtered_squares2, fill = NA, color = "orange", linewidth = 2) +
+  geom_sf(data = filtered_squares4, fill = NA, color = "red", linewidth = 2) +
+  theme_minimal() +
+  ggtitle("cooks_path")
+
+
+filtered_points <- ann %>% filter(Site == "north_reef_1")
+filtered_squares <- squares %>% filter(site == "north_reef_1")
 
 ggplot() +
   geom_sf(data = filtered_points, color = "black") +
   geom_sf(data = filtered_squares, fill = NA, color = "red", linewidth = 2) +
   theme_minimal() +
-  ggtitle("horseshoe")
-
-### append counts on grid ####
-grid4$countAdults <- poly.counts(ann,squares)
-write.csv(grid4, "data/grid4_counts.csv", row.names = FALSE)
+  ggtitle("north_reef_1")
 
 
-
-
-###
-plot(ann[ann$Site == "north_of_paradise",])
-plot(squares4)
