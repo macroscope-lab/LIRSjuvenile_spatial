@@ -10,6 +10,7 @@ library(RColorBrewer)
 
 ## read annotations and get site central coordinates ####
 ann<- st_read("data_raw/annotations/lizard_rr_annotations_2022_nov.shp")
+ann <- ann %>% filter(ann$Species != "soft")
 max(ann$ColonyID) #48463
 
 # some points in Vickis were labelled lagoon_1, which offset finding the centers.
@@ -27,7 +28,7 @@ coords <- st_coordinates(ann2)
 points_df <- st_drop_geometry(ann2)
 coords_df <- cbind(points_df, coords)
 
-# Group by 'type' and compute central x and y
+# Group by site and compute central x and y
 centroids_df <- coords_df %>%
   group_by(Site) %>%
   summarize(
@@ -39,7 +40,7 @@ centroids_df <- coords_df %>%
 centroids_sf <- st_as_sf(centroids_df, coords = c("xc", "yc"), crs = st_crs(ann))
 
 
-# prep these to make grid files
+# prep for grid files
 
 coords <- st_coordinates(centroids_sf)
 coord_t <- as.data.frame(cbind(site =centroids_sf$Site, x = as.numeric(coords[,1]), y = as.numeric (coords[,2])))
@@ -148,7 +149,8 @@ for (site in coord_t$site) {
 
 # split juveniles and adults
 ann_juv <- ann %>% filter(ColonyID > max(ann22$ColonyID))
-ann_adu <- ann %>% filter(ColonyID <= max(ann22$ColonyID))
+ann_adu <- ann %>% filter(ColonyID <= max(ann22$ColonyID),
+                          Status != "gone")
 #grid1
 c1 <- st_as_sf(grid1[,c("site","rep", "xc", "yc")],
                coords = c("xc", "yc"))
@@ -175,7 +177,7 @@ grid2$n_juv <- poly.counts(ann_juv,squares2)
 write.csv(grid2, "data/grid2_counts.csv", row.names = FALSE)
 
 
-grid4
+# grid4
 c4 <- st_as_sf(grid4[,c("site","rep", "xc", "yc")],
                coords = c("xc", "yc"))
 st_crs(c4) <- st_crs(ann)
