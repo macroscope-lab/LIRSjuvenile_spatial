@@ -7,453 +7,71 @@ library(parallel)
 library(sf)
 library(habtools)
 
-# Load reference tif
-ref <-  raster("data_raw/TB17.tif")
-crs(ref)
+# Load reference tif and centers
+rr <- rast("data_raw/records/SI.tif")
+coords <- st_read("data_raw/dem_coords_nov2022.shp")
+c_rep <- st_transform(coords, crs(rr))
+ann<- st_read("data_raw/annotations/lizard_rr_annotations_2022_nov.shp")
+# a plot
+plot(rr)
+points(c_rep)
 
-# Coordinate Reference System:
-#   Deprecated Proj.4 representation:
-#   +proj=tmerc +lat_0=-14.6989736557007 +lon_0=145.448257446289 +k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs 
-# WKT2 2019 representation:
-#   PROJCRS["unknown",
-#           BASEGEOGCRS["unknown",
-#                       DATUM["World Geodetic System 1984",
-#                             ELLIPSOID["WGS 84",6378137,298.257223563,
-#                                       LENGTHUNIT["metre",1]],
-#                             ID["EPSG",6326]],
-#                       PRIMEM["Greenwich",0,
-#                              ANGLEUNIT["degree",0.0174532925199433],
-#                              ID["EPSG",8901]]],
-#           CONVERSION["unknown",
-#                      METHOD["Transverse Mercator",
-#                             ID["EPSG",9807]],
-#                      PARAMETER["Latitude of natural origin",-14.6989736557007,
-#                                ANGLEUNIT["degree",0.0174532925199433],
-#                                ID["EPSG",8801]],
-#                      PARAMETER["Longitude of natural origin",145.448257446289,
-#                                ANGLEUNIT["degree",0.0174532925199433],
-#                                ID["EPSG",8802]],
-#                      PARAMETER["Scale factor at natural origin",1,
-#                                SCALEUNIT["unity",1],
-#                                ID["EPSG",8805]],
-#                      PARAMETER["False easting",0,
-#                                LENGTHUNIT["metre",1],
-#                                ID["EPSG",8806]],
-#                      PARAMETER["False northing",0,
-#                                LENGTHUNIT["metre",1],
-#                                ID["EPSG",8807]]],
-#           CS[Cartesian,2],
-#           AXIS["(E)",east,
-#                ORDER[1],
-#                LENGTHUNIT["metre",1,
-#                           ID["EPSG",9001]]],
-#           AXIS["(N)",north,
-#                ORDER[2],
-#                LENGTHUNIT["metre",1,
-#                           ID["EPSG",9001]]]] 
-
-# Reef records
-
+#seems fine - get tready to loop through
+## read file list
 files <- dir("data_raw/records")
-files <- unique(gsub("\\.tfw|\\.tif", "", files))
-#files <- files[c(1,3,5,7,9,12,14,16,18)]
-#
-## run this loop that for each record gets heigth variation at different scales (necessary for computing D)
+files <- unique(sub("\\..*", "", files))
+
+## run this loop for each scale
 store1 <- data.frame()
 store2 <- data.frame()
 store4 <- data.frame()
-files
 
-# read coords of the centers and transpose to right projection
+## put centres in meter ref
+c <- st_transform(coords, crs(ann))
 
-rr <- rast("data_raw/records/CP.tif")
-rrt <- rast("CPt.tif")
+## a plot to test projection change will work
+rrp <- project(rr, crs(ann))
+plot(rrp)
+points(c)
 
-rr_repr <- project(rr, st_crs(ann)$wkt)
-rrt_repr <- project(rrt, st_crs(c)$wkt)
-e <- ext(rr_repr)
-rrsq <- dem_crop(rr_repr, 
-                 x0 = (e$xmin + e$xmax) / 2, 
-                 y0 = (e$ymin + e$ymax) / 2,
-                 L = 8)
-plot(rr)
-points(centroids_sf)
-c_deg <- st_transform(centroids_sf, st_crs(rrt))
-points(c_deg)
-
-coords <- read.csv("data_raw/RR_gps_coords.csv")
-c2 <- st_as_sf(coords,
-               coords = c("x", "y"),
-               crs = 4326)
-c <- st_transform(c2, CRS("+proj=tmerc +lat_0=-14.6989736557007 +lon_0=145.448257446289 +k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"))
-coords_tr<- as.data.frame(c)
-Ccoords_tr<- cbind(coords$rec, coords$Site, coords_tr)
-names(Ccoords_tr) <- c("rec","site","x","y")
-
-for (rec in files) {
+# loop through all rr
+#rr <- "CP"
+for (rr in files) {
   # Load geotif for reef record
-  data <- raster(paste0("data_raw/records/", rec, ".tif"))
-  data <- projectRaster(data, crs = crs(ref))
-  # Get lower corner of 8x8m bounding box; alternatively, prescribe these values.
-  xb <- Ccoords_tr$x[which(Ccoords_tr$rec == rec)] - 4
-  yb <- Ccoords_tr$y[which(Ccoords_tr$rec == rec)] - 4
+  data <- rast(paste0("data_raw/records/", rr, ".tif"))
+  data <- project(data, crs(ann))
+  center <- c[c$rec==rr,]
+  x0 <- as.numeric(st_coordinates(center)[,1])
+  y0 <- as.numeric(st_coordinates(center)[,2])
+  rrs <- dem_crop(raster(data),x0,y0,8)
   
-  # Iterate through  0.5x0.5m quadrats (reps = 256) in reef record
-  # Scope (extent), scales of variation, and resolution (grain)
-  L <- 0.5 # Scope, 0.5 by 0.5 m reef patches
-  scl <- L / c(1, 2, 4, 8, 16, 32, 64) # Scales, aim for 2 orders magnitude
-
-  L0 <- min(scl) # Grain, resolution of processing ~ 7mm
+  dem_list1 <- dem_split(rrs,habtools::extent(raster(rrs))/8)
+  results1 <- lapply(dem_list1,rdh)
+  result1_df <- do.call(rbind, results1)
+  result1_df$site <- rr
+  result1_df$rep <- c(1:64)
+  store1 <- rbind(store1, result1_df)
+  write.csv(store1, "data/grid1_rdh.csv")
   
-  rep <- 1
-  grid05 <- seq(0,7.5, by = 0.5)
-  for (i in grid05) {
-    for (j in grid05) {
-      x0 <- xb + i
-      y0 <- yb + j
-      temp <- crop(data, extent(x0, x0 + L, y0, y0 + L))
-      H <- max(temp[!is.na(temp)]) - min(temp[!is.na(temp)]) #heigh range
-      temp2 <- as(temp, 'SpatialGridDataFrame')
-      R <- surfaceArea(temp2) / L^2
-      D <- 3 - log10(H / (sqrt(2) * L0 * sqrt(R^2 - 1))) / log10(L / L0)
-      store05 <- rbind(store05, data.frame(rec=rec, rep=rep, x0 = x0, y0 = y0, H=H, R=R, D=D))
-      write.csv(store05, "other_output/grid05_notheory_centered.csv", row.names=FALSE)
-      rep <- rep + 1
-    }
-  }
+  dem_list2 <- dem_split(rrs,habtools::extent(raster(rrs))/4)
+  results2 <- lapply(dem_list2,rdh)
+  result2_df <- do.call(rbind, results2)
+  result2_df$site <- rr
+  result2_df$rep <- c(1:16)
+  store2 <- rbind(store2, result2_df)
+  write.csv(store2, "data/grid2_rdh.csv")
   
-  # Iterate through  1x1 m quadrats (reps = 64) in reef record
-  # Scope (extent), scales of variation, and resolution (grain)
-  L <- 1 # Scope, 1 by 1 m reef patches
-  scl <- L / c(1, 2, 4, 8, 16, 32, 64) # Scales, aim for 2 orders magnitude
-  L0 <- min(scl) # Grain, resolution of processing ~ 16 mm
+  dem_list4 <- dem_split(rrs,habtools::extent(raster(rrs))/2)
+  results4 <- lapply(dem_list4,rdh)
+  result4_df <- do.call(rbind, results4)
+  result4_df$site <- rr
+  result4_df$rep <- c(1,3,2,4)
+  store4 <- rbind(store4, result4_df)
+  write.csv(store4, "data/grid4_rdh.csv")
   
-  rep <- 1
-  grid1 <- seq(0,7, by = 1)
-  for (i in grid1) {
-    for (j in grid1) {
-      x0 <- xb + i
-      y0 <- yb + j
-      temp <- crop(data, extent(x0, x0 + L, y0, y0 + L))
-      H <- max(temp[!is.na(temp)]) - min(temp[!is.na(temp)]) #heigh range
-      temp2 <- as(temp, 'SpatialGridDataFrame')
-      R <- surfaceArea(temp2) / L^2
-      D <- 3 - log10(H / (sqrt(2) * L0 * sqrt(R^2 - 1))) / log10(L / L0)
-      store1 <- rbind(store1, data.frame(rec=rec, rep=rep, x0 = x0, y0 = y0, H=H, R=R, D=D))
-      write.csv(store1, "other_output/grid1_notheory_centered.csv", row.names=FALSE)
-      rep <- rep + 1
-    }
-  }
-  
-  # Iterate through  2x2 m quadrats (reps = 16) in reef record
-  # Scope (extent), scales of variation, and resolution (grain)
-  L <- 2 # Scope, 2 by 2 m reef patches
-  scl <- L / c(1, 2, 4, 8, 16, 32, 64) # Scales, aim for 2 orders magnitude
-  L0 <- min(scl) # Grain, resolution of processing ~ 31 mm
-  
-  rep <- 1
-  grid2 <- seq(0,6, by = 2)
-  for (i in grid2) {
-    for (j in grid2) {
-      x0 <- xb + i
-      y0 <- yb + j
-      temp <- crop(data, extent(x0, x0 + L, y0, y0 + L))
-      H <- max(temp[!is.na(temp)]) - min(temp[!is.na(temp)]) #heigh range
-      temp2 <- as(temp, 'SpatialGridDataFrame')
-      R <- surfaceArea(temp2) / L^2
-      D <- 3 - log10(H / (sqrt(2) * L0 * sqrt(R^2 - 1))) / log10(L / L0)
-      store2 <- rbind(store2, data.frame(rec=rec, rep=rep, x0 = x0, y0 = y0, H=H, R=R, D=D))
-      write.csv(store2, "other_output/grid2_notheory_centered.csv", row.names=FALSE)
-      rep <- rep + 1
-    }
-  }
-
-  L <- 0.25 # Scope, 0.5 by 0.5 m reef patches
-  scl <- L / c(1, 2, 4, 8, 16, 32, 64) # Scales, aim for 2 orders magnitude
-  L0 <- min(scl) # Grain, resolution of processing ~ 7mm
-  
-  rep <- 1
-  grid25 <- seq(0,7.75, by = 0.25)
-  for (i in grid25) {
-    for (j in grid25) {
-      x0 <- xb + i
-      y0 <- yb + j
-      temp <- crop(data, extent(x0, x0 + L, y0, y0 + L))
-      H <- max(temp[!is.na(temp)]) - min(temp[!is.na(temp)]) #heigh range
-      temp2 <- as(temp, 'SpatialGridDataFrame')
-      R <- surfaceArea(temp2) / L^2
-      D <- 3 - log10(H / (sqrt(2) * L0 * sqrt(R^2 - 1))) / log10(L / L0)
-      store25 <- rbind(store25, data.frame(rec=rec, rep=rep, x0 = x0, y0 = y0, H=H, R=R, D=D))
-      write.csv(store25, "other_output/grid25_notheory_centered.csv", row.names=FALSE)
-      rep <- rep + 1
-    }
-  }
-}
-
-files
-
-#### extra
-store05 <- data.frame()
-store1 <- data.frame()
-store2 <- data.frame()
-files
-
-for (rec in files) {
-  # Load geotif for reef record
-  data <- raster(paste0("data_raw/records/", rec, ".tif"))
-  data <- projectRaster(data, crs = crs(ref))
-  # Get lower corner of 8x8m bounding box; alternatively, prescribe these values.
-  xb <- Ccoords_tr$x[which(Ccoords_tr$rec == rec)] - 4
-  yb <- Ccoords_tr$y[which(Ccoords_tr$rec == rec)] - 4
-  
-  x1 <- xb - 2
-  y1 <- yb + 2
-  x2 <- xb - 2
-  y2 <- yb + 4
-  x3 <- xb + 2
-  y3 <- yb + 8
-  x4 <- xb + 4
-  y4 <- yb + 8
-  x5 <- xb + 8
-  y5 <- yb + 4
-  x6 <- xb + 8
-  y6 <- yb + 2
-  x7 <- xb + 4
-  y7 <- yb - 2
-  x8 <- xb + 2
-  y8 <- yb - 2
-  
-  x <- c(x1, x2, x3, x4, x5, x6, x7, x8)
-  y <- c(y1, y2, y3, y4, y5, y6, y7, y8)
-  
-  for (n in 1:8) {
-    xb <- x[n]
-    yb <- y[n]
-    
-    # Iterate through  0.5x0.5m quadrats (reps = 256) in reef record
-    # Scope (extent), scales of variation, and resolution (grain)
-    L <- 0.5 # Scope, 0.5 by 0.5 m reef patches
-    scl <-
-      L / c(1, 2, 4, 8, 16, 32, 64) # Scales, aim for 2 orders magnitude
-    L0 <- min(scl) # Grain, resolution of processing ~ 7mm
-    
-    rep <- 257
-    grid05 <- seq(0, 1.5, by = 0.5)
-    for (i in grid05) {
-      for (j in grid05) {
-        x0 <- xb + i
-        y0 <- yb + j
-        temp <- crop(data, extent(x0, x0 + L, y0, y0 + L))
-        H <-
-          max(temp[!is.na(temp)]) - min(temp[!is.na(temp)]) #heigh range
-        temp2 <- as(temp, 'SpatialGridDataFrame')
-        R <- surfaceArea(temp2) / L ^ 2
-        D <-
-          3 - log10(H / (sqrt(2) * L0 * sqrt(R ^ 2 - 1))) / log10(L / L0)
-        store05 <-
-          rbind(store05,
-                data.frame(
-                  rec = rec,
-                  rep = rep,
-                  x0 = x0,
-                  y0 = y0,
-                  H = H,
-                  R = R,
-                  D = D
-                ))
-        write.csv(store05,
-                  "other_output/grid05_theory_extra_centered.csv",
-                  row.names = FALSE)
-        rep <- rep + 1
-      }
-    }
-    
-    # Iterate through  1x1 m quadrats (reps = 64) in reef record
-    # Scope (extent), scales of variation, and resolution (grain)
-    L <- 1 # Scope, 1 by 1 m reef patches
-    scl <-
-      L / c(1, 2, 4, 8, 16, 32, 64) # Scales, aim for 2 orders magnitude
-    L0 <- min(scl) # Grain, resolution of processing ~ 16 mm
-    
-    rep <- 577
-    grid1 <- seq(0, 1, by = 1)
-    for (i in grid1) {
-      for (j in grid1) {
-        x0 <- xb + i
-        y0 <- yb + j
-        temp <- crop(data, extent(x0, x0 + L, y0, y0 + L))
-        H <-
-          max(temp[!is.na(temp)]) - min(temp[!is.na(temp)]) #heigh range
-        temp2 <- as(temp, 'SpatialGridDataFrame')
-        R <- surfaceArea(temp2) / L ^ 2
-        D <-
-          3 - log10(H / (sqrt(2) * L0 * sqrt(R ^ 2 - 1))) / log10(L / L0)
-        store1 <-
-          rbind(store1,
-                data.frame(
-                  rec = rec,
-                  rep = rep,
-                  x0 = x0,
-                  y0 = y0,
-                  H = H,
-                  R = R,
-                  D = D
-                ))
-        write.csv(store1,
-                  "other_output/grid1_theory_extra_centered.csv",
-                  row.names = FALSE)
-        rep <- rep + 1
-      }
-    }
-    
-    # Iterate through  2x2 m quadrats (reps = 16) in reef record
-    # Scope (extent), scales of variation, and resolution (grain)
-    L <- 2 # Scope, 2 by 2 m reef patches
-    scl <-
-      L / c(1, 2, 4, 8, 16, 32, 64) # Scales, aim for 2 orders magnitude
-    L0 <- min(scl) # Grain, resolution of processing ~ 31 mm
-    
-    rep <- 145
-    grid2 <- seq(0, 1, by = 2)
-    x0 <- xb
-    y0 <- yb
-    temp <- crop(data, extent(x0, x0 + L, y0, y0 + L))
-    H <-
-      max(temp[!is.na(temp)]) - min(temp[!is.na(temp)]) #heigh range
-    temp2 <- as(temp, 'SpatialGridDataFrame')
-    R <- surfaceArea(temp2) / L ^ 2
-    D <-
-      3 - log10(H / (sqrt(2) * L0 * sqrt(R ^ 2 - 1))) / log10(L / L0)
-    store2 <-
-      rbind(store2,
-            data.frame(
-              rec = rec,
-              rep = rep,
-              x0 = x0,
-              y0 = y0,
-              H = H,
-              R = R,
-              D = D
-            ))
-    write.csv(store2, "other_output/grid2_theory_extra_centered.csv", row.names = FALSE)
-    rep <- rep + 1
-  }
-  
-  L <- 0.25 # Scope, 2 by 2 m reef patches
-  scl <-
-    L / c(1, 2, 4, 8, 16, 32, 64) # Scales, aim for 2 orders magnitude
-  L0 <- min(scl) # Grain, resolution of processing ~ 31 mm
-  
-  rep <- 9217
-  grid25 <- seq(0, 1.75, by = 0.25)
-  for (i in grid1) {
-    for (j in grid1) {
-      x0 <- xb + i
-      y0 <- yb + j
-  temp <- crop(data, extent(x0, x0 + L, y0, y0 + L))
-  H <-
-    max(temp[!is.na(temp)]) - min(temp[!is.na(temp)]) #heigh range
-  temp2 <- as(temp, 'SpatialGridDataFrame')
-  R <- surfaceArea(temp2) / L ^ 2
-  D <-
-    3 - log10(H / (sqrt(2) * L0 * sqrt(R ^ 2 - 1))) / log10(L / L0)
-  store2 <-
-    rbind(store2,
-          data.frame(
-            rec = rec,
-            rep = rep,
-            x0 = x0,
-            y0 = y0,
-            H = H,
-            R = R,
-            D = D
-          ))
-  write.csv(store2, "other_output/grid2_theory_extra_centered.csv", row.names = FALSE)
-  rep <- rep + 1
-  }
-
-  }
 }
 
 
-## add extra quadrats
-
-  
-plot(store05$R~grid05$R_theory,xlab="R_theory", ylab="R",)
-plot(store05$D~grid05$D_theory,xlab="D from R_theory", ylab="D from R",)
-plot(store05$H~grid05$H)
-
-plot(store1$R~tab1$R_theory,xlab="R_theory", ylab="R",)
-plot(store1$D~tab1$D_theory,xlab="D from R_theory", ylab="D from R",)
-plot(store1$H~tab1$H)
-
-plot(store2$R~tab2$R_theory,xlab="R_theory", ylab="R",)
-plot(store2$D~tab2$D_theory,xlab="D from R_theory", ylab="D from R",)
-plot(store2$H~tab2$H)
-
-## Fit more quadrats
 
 
-
-
-
-
-
-
-
-
-### automate points ###
-
-input_raster <- "data_raw/records/CP.tif"
-points_file <- "data_raw/2022Nov_RR_alignmentpoints/202211_cookspath_aligned.tif.points"
-temp_output <- "temp_with_gcps.tif"
-final_output <- "data_raw/records/CPt.tif"
-
-
-lines <- readLines(points_file)
-
-
-gcps <- lapply(lines, function(line) {
-  # Trim and skip empty lines
-  line <- trimws(line)
-  if (nchar(line) == 0) return(NULL)
-  
-  # Try to parse numeric values
-  vals <- suppressWarnings(as.numeric(strsplit(line, ",")[[1]]))
-  
-  # Check that there are at least 5 values and the 5th is 1 (enabled GCP)
-  if (length(vals) >= 5 && !any(is.na(vals)) && vals[5] == 1) {
-    return(c("-gcp", vals[1], vals[2], vals[3], vals[4]))
-  } else {
-    return(NULL)
-  }
-})
-
-# Flatten into a single character vector
-gcp_args <- unlist(gcps)
-
-# Check output
-print(gcp_args)
-
-cmd_translate <- c(
-  "gdal_translate",
-  "-of", "GTiff",
-  gcp_args,
-  shQuote(input_raster),
-  shQuote(temp_output)
-)
-
-system(paste(cmd_translate, collapse = " "))
-
-# Warp to georeference
-cmd_warp <- paste(
-  "gdalwarp",
-  "-tps",                         # Thin Plate Spline
-  "-r bilinear",                  # Resampling method
-  "-overwrite",                   # Overwrite output if exists
-  shQuote(temp_output),
-  shQuote(final_output)
-)
-
-system(cmd_warp)
 
