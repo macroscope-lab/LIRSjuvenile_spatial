@@ -71,7 +71,39 @@ for (rr in files) {
   
 }
 
+# fix rep ID to match rep ID in the count dataset
 
+# S=1m
+#store1 <- read.csv("data/grid1_rdh.csv")
+store1$rep_ht<- store1$rep
 
+tr <- data.frame(old = seq(1:64))
+tr$factor <- c(seq(0,7),seq(-1,6),seq(-2,5),seq(-3,4),
+               seq(-4,3),seq(-5,2),seq(-6,1),seq(-7,0))
+tr$new <- tr$old + (7*tr$factor)
+store1$rep <- rep(tr$new,18)
+
+write.csv(store1, "data/grid1_rdh.csv")
+
+# S=2m
+#store2 <- read.csv("data/grid2_rdh.csv")
+store2$rep_ht<- store2$rep
+
+tr <- data.frame(old = seq(1:16))
+tr$factor <- c(seq(0,3),seq(-1,2),seq(-2,1),seq(-3,0))
+tr$new <- tr$old + (3*tr$factor)
+store2$rep <- rep(tr$new,18)
+
+write.csv(store2, "data/grid2_rdh.csv")
+
+# S=4m
+# coded different as reps were already fixed in the loop above
+#store4 <- read.csv("data/grid4_rdh.csv")
+
+tr <- data.frame(old = c(1,3,2,4))
+tr$new <- c(1:4)
+store4$rep_ht<- rep(tr$new,18)
+
+write.csv(store4, "data/grid4_rdh.csv")
 
 
