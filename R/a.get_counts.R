@@ -11,7 +11,7 @@ library(RColorBrewer)
 ## read annotations and get site central coordinates ####
 ann<- st_read("data_raw/annotations/lizard_rr_annotations_2022_nov.shp")
 ann <- ann %>% filter(ann$Species != "soft")
-max(ann$ColonyID) #48463
+max(ann$ColonyID) #42991
 
 # some points in Vickis were labelled lagoon_1, which offset finding the centers.
 # so taking L1 from previous annotation file

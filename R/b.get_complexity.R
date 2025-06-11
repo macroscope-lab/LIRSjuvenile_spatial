@@ -106,4 +106,96 @@ store4$rep_ht<- rep(tr$new,18)
 
 write.csv(store4, "data/grid4_rdh.csv")
 
+#### some checks
+# resolutions
+res <- data.frame()
+for (rr in files) {
+  data <- rast(paste0("data_raw/records/", rr, ".tif"))
+  site <- rr
+  resx <- res(data)[1]
+  resy <- res(data) [2]
+  res <- rbind(res,cbind(site = site, resx = resx, resy = resy))
+}
+write.csv(res[res$site!="HS2",], "outputs/raw_dem_resolutions.csv")
 
+# compare site center coords ####
+c_rep <- st_transform(coords, crs(ann))
+c_rr <- cbind(as.data.frame(st_coordinates(c_rep)),c_rep) [,1:3]
+names(c_rr) <- c("x_rr","y_rr","site")
+c_ann <- as.data.frame(unique(dt1[,c("site","xs","ys")]))
+names(c_ann) <- c("site","x_ann","y_ann")
+c_comp <- merge(c_ann,c_rr)
+c_comp <- c_comp %>%
+  mutate(vector_x = x_rr - x_ann,
+         vector_y = y_rr - y_ann)
+shift_df <- c_comp[,c("site", "vector_x", "vector_y")]
+
+shift_df <- shift_df %>%
+  mutate(site = case_when(
+    site == "CP" ~ "cooks_path",
+    site == "CB" ~ "corner_beach",
+    site == "EP" ~ "easter_point",
+    site == "GT" ~ "gnarly_tree",
+    site == "HS" ~ "horseshoe",
+    site == "L1" ~ "lagoon_1",
+    site == "L2" ~ "lagoon_2",
+    site == "LH" ~ "lizard_head",
+    site == "NM" ~ "no_mans_land",
+    site == "NP" ~ "north_of_paradise",
+    site == "N1" ~ "north_reef_1",
+    site == "N2" ~ "north_reef_2",
+    site == "N3" ~ "north_reef_3",
+    site == "OS" ~ "osprey",
+    site == "RS" ~ "resort",
+    site == "SI" ~ "south_island",
+    site == "SE" ~ "southeast",
+    site == "TM" ~ "trimodal",
+    site == "TB" ~ "turtle_beach",
+    site == "VK" ~ "vickis",
+    site == "WM" ~ "washing_machine",
+  ))
+
+names(shift_df) <- c("Site", "vector_x", "vector_y")
+
+ann_shifted <- ann[!ann$Site %in% c("north_reef_2","washing_machine","lizard_head", "no_mans_land"),] %>%
+  left_join(shift_df, by = "Site")
+
+coords <- st_coordinates(ann_shifted)
+
+# Apply the shift
+coords_shifted <- coords
+coords_shifted[,1] <- coords[,1] + ann_shifted$vector_x
+coords_shifted[,2] <- coords[,2] + ann_shifted$vector_y
+
+ann_shifted$geometry <- st_sfc(lapply(1:nrow(coords_shifted), function(i) {
+  st_point(coords_shifted[i, ])
+}), crs = st_crs(ann_shifted))
+
+writeOGR
+## loop for plotting translated points
+for (rr in files) {
+  # Load geotif for reef record
+  data <- rast(paste0("data_raw/records/", rr, ".tif"))
+  data <- project(data, crs(ann))
+  rr_df <- as.data.frame(data, xy = TRUE, na.rm = TRUE)
+  raster_var <- names(data)[1]
+  ext <- ext(data)
+  # Step 2: Plot using ggplot
+  p <- ggplot() +
+    geom_raster(data = rr_df, aes(x = x, y = y, fill = !!sym(raster_var))) +
+    geom_sf(data = ann_shifted, color = "red", size = 1) +
+    geom_sf(data = ann, color = "blue", size = 1) +
+    coord_sf(
+      xlim = c(ext[1], ext[2]),  # xmin, xmax
+      ylim = c(ext[3], ext[4]),  # ymin, ymax
+      expand = FALSE
+    ) +
+    theme_minimal() +
+    labs(title = paste0(rr, " raster with Shifted Points in red"), fill = raster_var)
+  
+  ggsave(paste0("figures/grids/",rr,"-ann_shifted.png"), 
+         plot = p, width = 10, height = 10, dpi = 400)
+}
+
+st_write(ann_shifted, "data_raw/ann_shifted.shp")
+#it looks OK

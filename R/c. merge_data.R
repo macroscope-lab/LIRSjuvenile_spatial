@@ -3,8 +3,24 @@
 # upload libraries
 library(dplyr)
 library(ggplot2)
+library(GGally)
 
 # read datasets and merge
+
+set <- read.csv("data_raw/Settlement_LIRS_2021-2022_VB_MJB_JC_MW_DW.csv")
+s <- set %>% 
+  group_by(site_abbreviation, tile_number) %>%
+  mutate(tile_total = sum(total)) %>%
+  select(site_abbreviation, tile_number, tile_total)%>%
+  unique() %>%
+  ungroup() %>%
+  group_by(site_abbreviation) %>%
+  mutate(mean_settlers = mean(tile_total)) %>%
+  select(site_abbreviation, mean_settlers) %>%
+  unique()
+s <- s[1:20,]
+names(s) <- c("site","mean_sett") 
+
 counts1 <- read.csv("data/grid1_counts.csv") 
 counts2 <- read.csv("data/grid2_counts.csv") 
 counts4 <- read.csv("data/grid4_counts.csv") 
@@ -100,10 +116,103 @@ dt1 <- dt1[,!(names(dt1) %in% c("X", "X.1")) ]
 dt2 <- dt2[,!(names(dt2) %in% c("X", "X.1")) ]
 dt4 <- dt4[,!(names(dt4) %in% c("X", "X.1")) ]
 
-# plot variables
+dt1 <- merge(dt1,s, by="site")
+dt2 <- merge(dt2,s, by="site")
+dt4 <- merge(dt4,s, by="site")
+  
+dt1 <- dt1 %>% 
+  mutate(
+  n_adu_log = log(n_adu+1),
+  mean_sett_s = as.numeric(scale(mean_sett)),
+  R_log10 = log10(R),
+  D_s = as.numeric(scale(D))) %>%
+  group_by(site)%>%
+  mutate(xs = mean(xc),
+         ys = mean(yc)) %>%
+  ungroup() 
 
 
+dt2 <- dt2 %>% 
+  group_by(site)%>%
+  mutate(xs = mean(xc),
+         ys = mean(yc)) %>%
+  ungroup()
 
+
+dt4 <- dt4 %>% 
+  group_by(site)%>%
+  mutate(xs = mean(xc),
+         ys = mean(yc)) %>%
+  ungroup()
+
+
+#### plot variables
+
+pairplot1 <- dt1 %>%
+  select("n_adu", "n_juv","mean_sett","R","D","H","site") %>%
+  mutate(site = reorder(site, R, FUN = mean))%>%
+  ggpairs(title = "Pair plot - 1m grid",
+                      lower = list(continuous = wrap("smooth", alpha = 0.3, size=0.5),  mapping = ggplot2::aes(colour=site)), 
+                      diag = list(discrete="barDiag",  mapping = ggplot2::aes(colour=site),
+                                  continuous = wrap("densityDiag", alpha=0.5)), 
+                      upper = list(combo = wrap("box_no_facet", alpha=0.5),
+                                   continuous = wrap("cor", size=4, alignPercent=0.8)),
+                      #labeller = "label_parsed", 
+                     cardinality_threshold = 18) + 
+  scale_color_viridis_d()+
+  scale_fill_viridis_d()+
+  theme_minimal()+
+  theme(#panel.spacing = unit(0, "mm"),
+    panel.grid = element_blank(),
+    strip.background = element_rect(fill = NULL, colour = "black"),
+    strip.text = element_text(size = 12))
+pairplot1
+
+ggsave(file="figures/Pairplot1.png", plot=pairplot1, width=7, height=6)
+
+pairplot2 <- dt2 %>%
+  select("n_adu", "n_juv","mean_sett","R","D","H","site") %>%
+  mutate(site = reorder(site, R, FUN = mean))%>%
+  ggpairs(title = "Pair plot - 2m grid",
+          lower = list(continuous = wrap("smooth", alpha = 0.3, size=0.5),  mapping = ggplot2::aes(colour=site)), 
+          diag = list(discrete="barDiag",  mapping = ggplot2::aes(colour=site),
+                      continuous = wrap("densityDiag", alpha=0.5)), 
+          upper = list(combo = wrap("box_no_facet", alpha=0.5),
+                       continuous = wrap("cor", size=4, alignPercent=0.8)),
+          #labeller = "label_parsed", 
+          cardinality_threshold = 18) + 
+  scale_color_viridis_d()+
+  scale_fill_viridis_d()+
+  theme_minimal()+
+  theme(#panel.spacing = unit(0, "mm"),
+    panel.grid = element_blank(),
+    strip.background = element_rect(fill = NULL, colour = "black"),
+    strip.text = element_text(size = 12))
+pairplot2
+
+ggsave(file="figures/Pairplot2.png", plot=pairplot2, width=7, height=6)
+
+pairplot4 <- dt4 %>%
+  select("n_adu", "n_juv","mean_sett","R","D","H","site") %>%
+  mutate(site = reorder(site, R, FUN = mean))%>%
+  ggpairs(title = "Pair plot - 4m grid",
+          lower = list(continuous = wrap("smooth", alpha = 0.3, size=0.5),  mapping = ggplot2::aes(colour=site)), 
+          diag = list(discrete="barDiag",  mapping = ggplot2::aes(colour=site),
+                      continuous = wrap("densityDiag", alpha=0.5)), 
+          upper = list(combo = wrap("box_no_facet", alpha=0.5),
+                       continuous = wrap("cor", size=4, alignPercent=0.8)),
+          #labeller = "label_parsed", 
+          cardinality_threshold = 18) + 
+  scale_color_viridis_d()+
+  scale_fill_viridis_d()+
+  theme_minimal()+
+  theme(#panel.spacing = unit(0, "mm"),
+    panel.grid = element_blank(),
+    strip.background = element_rect(fill = NULL, colour = "black"),
+    strip.text = element_text(size = 12))
+pairplot4
+
+ggsave(file="figures/Pairplot4.png", plot=pairplot4, width=7, height=6)
 
 
 
