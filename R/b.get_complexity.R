@@ -6,20 +6,52 @@ library(terra)
 library(parallel)
 library(sf)
 library(habtools)
+library(raster)
 
 # Load reference tif and centers
-rr <- rast("data_raw/records/SI.tif")
-coords <- st_read("data_raw/dem_coords_nov2022.shp")
-c_rep <- st_transform(coords, crs(rr))
+rr <- rast("data_raw/records/OS.tif")
 ann<- st_read("data_raw/annotations/lizard_rr_annotations_2022_nov.shp")
+coords <- st_read("data_raw/dem_coords_nov2022.shp")
+c_rep <- st_transform(coords, crs(ann))
 # a plot
 plot(rr)
 points(c_rep)
 
-#seems fine - get tready to loop through
 ## read file list
 files <- dir("data_raw/records")
 files <- unique(sub("\\..*", "", files))
+
+
+## resample and reproject ####
+# resample and export dem at right lizard meter reprojection
+res <- data.frame()
+target_res <- 0.005
+for (rr in files) {
+  data <- rast(paste0("data_raw/records/", rr, ".tif"))
+  data <- project(data, crs(ann))
+  site <- rr
+  resx <- res(data)[1]
+  resy <- res(data) [2]
+  ext_rr <- ext(data)
+  target <- rast(
+    extent = ext_rr,
+    resolution = c(target_res, target_res),
+    crs = crs(data)
+  )
+  rr_resampled <- resample(data, target, method = "bilinear")
+  resx_re <- res(rr_resampled)[1]
+  resy_re <- res(rr_resampled) [2]
+  res <- rbind(res,cbind(site = site, resx = resx, resy = resy,
+                         resx_re = resx_re, resy_re = resy_re))
+  writeRaster(rr_resampled, paste0("data/dem_reprojected_resampled/",rr,"_repr.tif"))
+}
+write.csv(res[res$site!="HS2",], "outputs/raw_dem_reproj_resolutions.csv")
+
+
+## get rdh ####
+#seems fine - get tready to loop through
+files <- dir("data/dem_reprojected_resampled")
+files <- unique(sub("_.*", "", files))
 
 ## run this loop for each scale
 store1 <- data.frame()
@@ -29,17 +61,11 @@ store4 <- data.frame()
 ## put centres in meter ref
 c <- st_transform(coords, crs(ann))
 
-## a plot to test projection change will work
-rrp <- project(rr, crs(ann))
-plot(rrp)
-points(c)
-
 # loop through all rr
 #rr <- "CP"
 for (rr in files) {
   # Load geotif for reef record
-  data <- rast(paste0("data_raw/records/", rr, ".tif"))
-  data <- project(data, crs(ann))
+  data <- rast(paste0("data/dem_reprojected_resampled/", rr, "_repr.tif"))
   center <- c[c$rec==rr,]
   x0 <- as.numeric(st_coordinates(center)[,1])
   y0 <- as.numeric(st_coordinates(center)[,2])
@@ -106,19 +132,7 @@ store4$rep_ht<- rep(tr$new,18)
 
 write.csv(store4, "data/grid4_rdh.csv")
 
-#### some checks
-# resolutions
-res <- data.frame()
-for (rr in files) {
-  data <- rast(paste0("data_raw/records/", rr, ".tif"))
-  site <- rr
-  resx <- res(data)[1]
-  resy <- res(data) [2]
-  res <- rbind(res,cbind(site = site, resx = resx, resy = resy))
-}
-write.csv(res[res$site!="HS2",], "outputs/raw_dem_resolutions.csv")
-
-# compare site center coords ####
+# compare site center coords with annotation file ####
 c_rep <- st_transform(coords, crs(ann))
 c_rr <- cbind(as.data.frame(st_coordinates(c_rep)),c_rep) [,1:3]
 names(c_rr) <- c("x_rr","y_rr","site")
@@ -171,7 +185,7 @@ ann_shifted$geometry <- st_sfc(lapply(1:nrow(coords_shifted), function(i) {
   st_point(coords_shifted[i, ])
 }), crs = st_crs(ann_shifted))
 
-writeOGR
+
 ## loop for plotting translated points
 for (rr in files) {
   # Load geotif for reef record
@@ -197,5 +211,69 @@ for (rr in files) {
          plot = p, width = 10, height = 10, dpi = 400)
 }
 
-st_write(ann_shifted, "data_raw/ann_shifted.shp")
-#it looks OK
+
+st_write(ann_shifted, "data_raw/ann_shifted.shp", overwrite = TRUE)
+
+
+
+test <- dir("data_raw/orthos")
+test <- unique(sub("\\..*", "", test))
+for (r in test) {
+  # Load geotif for reef record
+  data <- rast(paste0("data_raw/orthos/", r, ".tif"))
+  data <- project(data, crs(ann))
+  rr_df <- as.data.frame(data, xy = TRUE, na.rm = TRUE)
+  raster_var <- names(data)[1]
+  ext <- ext(data)
+  # Step 2: Plot using ggplot
+  # p <- ggplot() +
+  #   geom_raster(data = rr_df, aes(x = x, y = y, fill = !!sym(raster_var))) +
+  #   geom_sf(data = ann_shifted, color = "red", size = 1) +
+  #   geom_sf(data = ann, color = "blue", size = 1) +
+  #   coord_sf(
+  #     xlim = c(ext[1], ext[2]),  # xmin, xmax
+  #     ylim = c(ext[3], ext[4]),  # ymin, ymax
+  #     expand = FALSE
+  #   ) +
+  #   theme_minimal() +
+  #   labs(title = paste0(rr, " raster with Shifted Points in red"), fill = raster_var)
+  # 
+  # ggsave(paste0("figures/grids/",r,"-orthoproj_shifted.png"), 
+  #        plot = p, width = 10, height = 10, dpi = 400)
+  writeRaster(data, paste0("data_raw/orthos-repr/",r,"_repr.tif"), overwrite = TRUE)
+}
+
+### check ####
+#rdh4 <- read.csv("data/grid4_rdh.csv")
+rdh1 <- store1
+
+names(rdh1)
+summary(rdh1)
+rdh1[c(tail(order(rdh1$R))),]
+rdh1[c(head(order(rdh1$R))),]
+
+rdh1[c(tail(order(rdh1$D))),]
+rdh1[c(head(order(rdh1$D))),]
+
+rdh1[c(tail(order(rdh1$H))),]
+rdh1[c(head(order(rdh1$H))),]
+
+rdh2[c(tail(order(rdh2$R))),]
+rdh2[c(head(order(rdh2$R))),]
+
+rdh2[c(tail(order(rdh2$D))),]
+rdh2[c(head(order(rdh2$D))),]
+
+rdh2[c(tail(order(rdh2$H))),]
+rdh2[c(head(order(rdh2$H))),]
+
+rdh4[c(tail(order(rdh4$R))),]
+rdh4[c(head(order(rdh4$R))),]
+
+rdh4[c(tail(order(rdh4$D))),]
+rdh4[c(head(order(rdh4$D))),]
+
+rdh4[c(tail(order(rdh4$H))),]
+rdh4[c(head(order(rdh4$H))),]
+
+ 

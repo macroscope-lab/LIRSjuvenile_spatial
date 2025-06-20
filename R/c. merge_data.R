@@ -120,7 +120,8 @@ dt1 <- merge(dt1,s, by="site")
 dt2 <- merge(dt2,s, by="site")
 dt4 <- merge(dt4,s, by="site")
   
-dt1 <- dt1 %>% 
+dt1 <- dt1 %>%
+  filter(site_full %in% subset_sites) %>%
   mutate(
   n_adu_log = log(n_adu+1),
   mean_sett_s = as.numeric(scale(mean_sett)),
@@ -132,14 +133,16 @@ dt1 <- dt1 %>%
   ungroup() 
 
 
-dt2 <- dt2 %>% 
+dt2 <-  dt2 %>%
+  filter(site_full %in% subset_sites) %>%
   group_by(site)%>%
   mutate(xs = mean(xc),
          ys = mean(yc)) %>%
   ungroup()
 
 
-dt4 <- dt4 %>% 
+dt4 <- dt4 %>%
+  filter(site_full %in% subset_sites) %>%
   group_by(site)%>%
   mutate(xs = mean(xc),
          ys = mean(yc)) %>%
@@ -148,9 +151,15 @@ dt4 <- dt4 %>%
 
 #### plot variables
 
+subset_sites <- c("cooks_path","easter_point","lagoon_2",
+                  "north_reef_1","gnarly_tree","corner_beach",
+                  "horseshoe", "north_reef_3", "resort", "southeast",
+                  "trimodal","turtle_beach")
+
 pairplot1 <- dt1 %>%
+  filter(site_full %in% subset_sites) %>%
   select("n_adu", "n_juv","mean_sett","R","D","H","site") %>%
-  mutate(site = reorder(site, R, FUN = mean))%>%
+  mutate(site = reorder(site, R, FUN = median))%>%
   ggpairs(title = "Pair plot - 1m grid",
                       lower = list(continuous = wrap("smooth", alpha = 0.3, size=0.5),  mapping = ggplot2::aes(colour=site)), 
                       diag = list(discrete="barDiag",  mapping = ggplot2::aes(colour=site),
@@ -171,8 +180,9 @@ pairplot1
 ggsave(file="figures/Pairplot1.png", plot=pairplot1, width=7, height=6)
 
 pairplot2 <- dt2 %>%
+  filter(site_full %in% subset_sites) %>%
   select("n_adu", "n_juv","mean_sett","R","D","H","site") %>%
-  mutate(site = reorder(site, R, FUN = mean))%>%
+  mutate(site = reorder(site, R, FUN = median))%>%
   ggpairs(title = "Pair plot - 2m grid",
           lower = list(continuous = wrap("smooth", alpha = 0.3, size=0.5),  mapping = ggplot2::aes(colour=site)), 
           diag = list(discrete="barDiag",  mapping = ggplot2::aes(colour=site),
@@ -193,8 +203,9 @@ pairplot2
 ggsave(file="figures/Pairplot2.png", plot=pairplot2, width=7, height=6)
 
 pairplot4 <- dt4 %>%
+  filter(site_full %in% subset_sites) %>%
   select("n_adu", "n_juv","mean_sett","R","D","H","site") %>%
-  mutate(site = reorder(site, R, FUN = mean))%>%
+  mutate(site = reorder(site, R, FUN = median))%>%
   ggpairs(title = "Pair plot - 4m grid",
           lower = list(continuous = wrap("smooth", alpha = 0.3, size=0.5),  mapping = ggplot2::aes(colour=site)), 
           diag = list(discrete="barDiag",  mapping = ggplot2::aes(colour=site),
