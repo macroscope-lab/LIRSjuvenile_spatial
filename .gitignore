@@ -39,6 +39,9 @@ vignettes/*.pdf
 .Renviron
 data_raw/TB17.tif
 
+# macOS thumbnails etc etc 
+.DS_Store
+
 # Shapefiles
 *.shp
 *.shx
