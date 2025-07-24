@@ -38,3 +38,17 @@ vignettes/*.pdf
 # R Environment Variables
 .Renviron
 data_raw/TB17.tif
+
+# Shapefiles
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+*.qmd
+
+# Data folders
+data_raw/
+*.qgz
+*.pptx
+*.docx
