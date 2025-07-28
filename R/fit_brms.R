@@ -3,6 +3,125 @@
 library(brms)
 library(ggplot2)
 library(dplyr)
+library(stringr)
+
+# read data ####
+
+paths <- c("data/dt1_2022.csv","data/dt2_2022.csv","data/dt4_2022.csv",
+           "data/dt1_2019.csv", "data/dt2_2019.csv", "data/dt4_2019.csv")
+
+for (path in paths) {
+  dt <- read.csv(path)
+  dt$site <- as.factor(dt$site)
+  dt$year <- str_sub(path, 10, 13)
+  dt$size <- as.numeric(str_sub(path, 8, 8))
+  
+  if (unique(dt$year) == "2022" & unique(dt$size) == 1) {
+    #dt1 %>% arrange(desc(H))
+    dt <- dt[dt$H != max(dt$H),]}
+  
+  
+  fitnb <- brm(n_juv ~ n_adu + mean_sett + R + D +
+                      (1 | site), 
+                    data = dt,
+                    family = negbinomial())
+  saveRDS(fitnb,paste0("outputs/brm_nb_",str_sub(path, 8, 13),".rds"))
+  
+  fitznb <- brm(n_juv ~ n_adu + mean_setr + R + D +
+                  (1 | site), 
+                data = dt1,
+                family = zero_inflated_negbinomial())
+  saveRDS(fitznb,paste0("outputs/brm_znb_",str_sub(path, 8, 13),".rds"))
+  
+  
+  p <- plot(conditional_effects(fitnb), points = TRUE, ask = FALSE, page = 1)
+  
+  
+  newdata <- data.frame(
+    n_adu = seq(min(dt$n_adu), max(dt$n_adu), length.out = 100),
+    mean_sett = 0,
+    R= 0,
+    D = 0,
+    site = "horseshoe"  # typical site level
+  )
+  
+  # Get predicted values with uncertainty
+  preds <- posterior_epred(fitnb, newdata = newdata, allow_new_levels = TRUE)
+  preds2 <- posterior_predict(fitnb, newdata = newdata, allow_new_levels = TRUE)
+  
+
+  # Summarize
+  pred_mean <- apply(preds, 2, mean)
+  pred_lower <- apply(preds, 2, quantile, probs = 0.05)
+  pred_upper <- apply(preds, 2, quantile, probs = 0.95)
+  
+  # Plot
+  pred <- ggplot(newdata, aes(x = n_adu, y = pred_mean)) +
+    geom_line() +
+    geom_ribbon(aes(ymin = pred_lower, ymax = pred_upper), alpha = 0.2) +
+    labs(y = "Predicted juvenile count", x = "Adult count")+
+    theme_minimal()
+  ggsave(preds, paste0("outputs/plot_predict_",str_sub(path, 8, 13),".rds"))
+  
+  # Predicted means
+  fitted_vals <- fitted(fitnb)
+  
+  # Plot predicted vs. observed
+  ggplot(data = dt1, aes(y = fitted_vals[, "Estimate"], x = n_juv, col = site)) +
+    geom_point(alpha = 0.4) +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+    labs(y = "Predicted juvenile count", x = "Observed juvenile count") +
+    theme_minimal()
+  
+  ggplot(data = dt4, aes(y = n_juv, x = R, col = site)) +
+    geom_point(alpha = 0.4) +
+    geom_smooth()+
+    geom_smooth(aes(y = n_juv, x = R), col = "black")+
+    labs(y = "juvenile count", x = "R") +
+    theme_minimal()
+  
+  ggplot(data = dt4, aes(y = n_juv, x = D, col = site)) +
+    geom_point(alpha = 0.4) +
+    geom_smooth()+
+    geom_smooth(aes(y = n_juv, x = D), col = "black")+
+    labs(y = "juvenile count", x = "D") +
+    theme_minimal()
+  
+  
+  ranef_vals <- ranef(fitnb)$site[, , "Intercept"]
+  site_re_df <- as.data.frame(ranef_vals)
+  site_re_df$site <- rownames(ranef_vals)
+  site_re_df <- site_re_df[, c("site", "Estimate", "Q2.5", "Q97.5")]
+  
+  ggplot(site_re_df, aes(x = reorder(site, Estimate), y = Estimate)) +
+    geom_point() +
+    geom_pointrange(aes(ymin = Q2.5, ymax = Q97.5), linewidth = 1) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    coord_flip() +
+    labs(x = "Site", y = "Random Intercept Estimate", 
+         title = "Site Random Effects") +
+    theme_minimal()
+  
+  
+  fixef_df <- as.data.frame(fixef(fitnb))[2:5,]
+  fixef_df$term <- rownames(fixef_df)
+  fixef_df <- fixef_df[, c("term", "Estimate", "Q2.5", "Q97.5")]
+  
+  ggplot(fixef_df, aes(x = reorder(term, Estimate), y = Estimate)) +
+    geom_point() +
+    geom_pointrange(aes(ymin = Q2.5, ymax = Q97.5), linewidth = 1) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    coord_flip() +
+    labs(x = "Fixed Effect", y = "Estimate",
+         title = "Fixed Effects (Posterior Means & 95% CI)") +
+    theme_minimal()
+  
+  
+  bayesplot::ppc_dens_overlay(y = dt1$n_juv, yrep = posterior_predict(fitnb, draws = 100))
+  
+}
+
+
 
 ### 2022 1x1m ####
 dt1 <- read.csv("data/dt1_2022.csv")
@@ -20,11 +139,10 @@ if (unique(dt1$year) == "2022")
 # dt1 %>% group_by(site,year)%>%mutate(av_juv = mean(n_juv)) %>% select(site, year,av_juv) %>% unique() %>% arrange(year,av_juv)
 dt1 %>% arrange(n_juv) %>% tail(n=10)
 
-
 ggplot(dt1, aes(n_juv)) +
   geom_histogram(binwidth = 1)+
   theme_bw()+
-  ggtitle("cell count per juvenile abundance - 2022")
+  ggtitle("cell count per juvenile abundance - 1x1m, 2022")
 
 summary_data <- dt1 %>%
   group_by(site) %>%
@@ -32,7 +150,7 @@ summary_data <- dt1 %>%
             var_count = var(n_juv))
 
 plot(summary_data$mean_count, summary_data$var_count,
-     xlab = "Mean", ylab = "Variance", main = "Mean-Variance Plot across sites - 2022")
+     xlab = "Mean", ylab = "Variance", main = "Mean-Variance across sites - 1x1m, 2022")
 
 poisson_model <- glmer(n_juv ~ n_adu_log + mean_sett_s + R_log10 + D_s +
                          (1 | site), 
@@ -61,87 +179,7 @@ plot(conditional_effects(fitznb_nat, effects = "n_adu"))
 plot(conditional_effects(fitznb, effects = "n_adu_log"))
 
 
-plot(conditional_effects(fitnb), points = TRUE, ask = FALSE)
 
-
-newdata <- data.frame(
-  n_adu = seq(min(dt1$n_adu), max(dt1$n_adu), length.out = 100),
-  mean_sett = 0,
-  R= 0,
-  D = 0,
-  site = "horseshoe"  # or a typical site level
-)
-
-# Get predicted values with uncertainty
-preds <- posterior_epred(fitnb, newdata = newdata, allow_new_levels = TRUE)
-
-# Summarize
-pred_mean <- apply(preds, 2, mean)
-pred_lower <- apply(preds, 2, quantile, probs = 0.05)
-pred_upper <- apply(preds, 2, quantile, probs = 0.95)
-
-# Plot
-ggplot(newdata, aes(x = n_adu, y = pred_mean)) +
-  geom_line() +
-  geom_ribbon(aes(ymin = pred_lower, ymax = pred_upper), alpha = 0.2) +
-  labs(y = "Predicted juvenile count", x = "Adult count")+
-  theme_bw()
-
-# Predicted means
-fitted_vals <- fitted(fitnb)
-
-# Plot predicted vs. observed
-ggplot(data = dt1, aes(y = fitted_vals[, "Estimate"], x = n_juv, col = site)) +
-  geom_point(alpha = 0.4) +
-  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
-  labs(y = "Predicted juvenile count", x = "Observed juvenile count") +
-  theme_minimal()
-
-ggplot(data = dt4, aes(y = n_juv, x = R, col = site)) +
-  geom_point(alpha = 0.4) +
-  geom_smooth()+
-  geom_smooth(aes(y = n_juv, x = R), col = "black")+
-  labs(y = "juvenile count", x = "R") +
-  theme_minimal()
-
-ggplot(data = dt4, aes(y = n_juv, x = D, col = site)) +
-  geom_point(alpha = 0.4) +
-  geom_smooth()+
-  geom_smooth(aes(y = n_juv, x = D), col = "black")+
-  labs(y = "juvenile count", x = "D") +
-  theme_minimal()
-
-
-ranef_vals <- ranef(fitnb)$site[, , "Intercept"]
-site_re_df <- as.data.frame(ranef_vals)
-site_re_df$site <- rownames(ranef_vals)
-site_re_df <- site_re_df[, c("site", "Estimate", "Q2.5", "Q97.5")]
-
-ggplot(site_re_df, aes(x = reorder(site, Estimate), y = Estimate)) +
-  geom_point() +
-  geom_pointrange(aes(ymin = Q2.5, ymax = Q97.5), linewidth = 1) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  coord_flip() +
-  labs(x = "Site", y = "Random Intercept Estimate", 
-       title = "Site Random Effects") +
-  theme_minimal()
-
-
-fixef_df <- as.data.frame(fixef(fitnb))[2:5,]
-fixef_df$term <- rownames(fixef_df)
-fixef_df <- fixef_df[, c("term", "Estimate", "Q2.5", "Q97.5")]
-
-ggplot(fixef_df, aes(x = reorder(term, Estimate), y = Estimate)) +
-  geom_point() +
-  geom_pointrange(aes(ymin = Q2.5, ymax = Q97.5), linewidth = 1) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  coord_flip() +
-  labs(x = "Fixed Effect", y = "Estimate",
-       title = "Fixed Effects (Posterior Means & 95% CI)") +
-  theme_minimal()
-
-
-bayesplot::ppc_dens_overlay(y = dt1$n_juv, yrep = posterior_predict(fitnb, draws = 100))
 
 
 
