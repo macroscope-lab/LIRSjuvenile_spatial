@@ -16,6 +16,7 @@ for (path in paths) {
   dt$year <- str_sub(path, 10, 13)
   dt$size <- as.numeric(str_sub(path, 8, 8))
   
+  
   if (unique(dt$year) == "2022" & unique(dt$size) == 1) {
     #dt1 %>% arrange(desc(H))
     dt <- dt[dt$H != max(dt$H),]}

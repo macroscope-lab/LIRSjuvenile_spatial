@@ -99,6 +99,18 @@ for (rr in files) {
 
 # fix rep ID to match rep ID in the count dataset
 
+store50$rep_ht<- store50$rep
+tr <- data.frame(old = seq(1:256))
+tr$factor <- c(seq(0,15),seq(-1,14),seq(-2,13),seq(-3,12),
+seq(-4,11),seq(-5,10),seq(-6,9),seq(-7,8),
+seq(-8,7),seq(-9,6),seq(-10,5),seq(-11,4),
+seq(-12,3),seq(-13,2),seq(-14,1),seq(-15,0))
+tr$new <- tr$old + (7*tr$factor)
+tr$new <- tr$old + (15*tr$factor)
+store50$rep <- rep(tr$new,9)
+write.csv(store50, "data/grid50_rdh19.csv")
+
+
 # S=1m
 #store1 <- read.csv("data/grid1_rdh.csv")
 store1$rep_ht<- store1$rep
