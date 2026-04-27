@@ -11,7 +11,7 @@ library(ggplot2)
 create_grid <- function(c_df, L, output_file = "outputs/gridX_coords.csv") {
   gridding <- seq(0, 7.5, by = L)
   grid <- c_df %>%
-    select(site, x_rr, y_rr) %>%
+    dplyr::select(site, x_rr, y_rr) %>%
     distinct() %>%
     # create all combinations of i and j for each site
     crossing(i = gridding, j = gridding) %>%
@@ -26,7 +26,7 @@ create_grid <- function(c_df, L, output_file = "outputs/gridX_coords.csv") {
     group_by(site) %>%
     mutate(rep = row_number()) %>%
     ungroup() %>%
-    select(site, rep, x0, y0, xc, yc)
+    dplyr::select(site, rep, x0, y0, xc, yc)
   write.csv(grid, output_file, row.names = FALSE)
   return(grid)
 }
@@ -38,7 +38,7 @@ grid_counts <- function(grid_list,
   # function to process each grid
   process_one <- function(grid, square_size) {
     pts <- grid %>%
-      select(site, rep, xc, yc) %>%
+      dplyr::select(site, rep, xc, yc) %>%
       st_as_sf(coords = c("xc", "yc"), remove = FALSE)
     st_crs(pts) <- st_crs(ann)
     half_size <- square_size / 2
@@ -113,7 +113,7 @@ plot_grids_by_site <- function(all_squares,
   }
 }
 ### get counts per each year #####
-
+# 2019 #####
 # everything needs to be transformed in meters projections, same as done for maps
 ref <- rast("data/dem_reprojected_resampled/TM19_repr.tif")
 ann <- st_read("data/rr_annotations_lirs_2019.shp")
@@ -188,7 +188,7 @@ plot_grids_by_site(counts_2019,
                    buffer = 3 ,
                    path_year = 19)
 
-
+#2023####
 # everything needs to be transformed in meters projections, same as done for maps
 ref <- rast("data/dem_reprojected_resampled/TM23_repr.tif")
 ann <- st_read("data/lizard_rr_annotations_2023.shp")
@@ -196,6 +196,7 @@ ann[is.na(ann$Species), ]$Species <- "Spp"
 subset_sites <- c(
   "cooks_path",
   "north_reef_1",
+  "north_reef_3",
   "gnarly_tree",
   "corner_beach",
   "horseshoe",
@@ -248,7 +249,7 @@ grid2 <- create_grid(c_df, L = 2, "output/grid2_coords_2023_11.csv")
 grid4 <- create_grid(c_df, L = 4, "output/grid4_coords_2023_11.csv")
 
 
-ann <- ann %>% filter(Status != "gone", Species != "soft")
+ann <- ann %>% dplyr::filter(Status != "gone", Species != "soft")
 ann_juv <- ann %>% filter(ColnyID > 48458)
 ann_adu <- ann %>% filter(ColnyID <= 48458)
 counts_2023 <- grid_counts(

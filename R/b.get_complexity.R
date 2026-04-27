@@ -77,7 +77,7 @@ for (rr in files) {
   result1_df$site <- rr
   result1_df$rep <- c(1:64)
   store1 <- rbind(store1, result1_df)
-  write.csv(store1, "data/grid1_rdh.csv")
+  write.csv(store1, "data/grid1_rdh19.csv")
   
   dem_list2 <- dem_split(rrs,habtools::extent(raster(rrs))/4)
   results2 <- lapply(dem_list2,rdh)
@@ -85,7 +85,7 @@ for (rr in files) {
   result2_df$site <- rr
   result2_df$rep <- c(1:16)
   store2 <- rbind(store2, result2_df)
-  write.csv(store2, "data/grid2_rdh.csv")
+  write.csv(store2, "data/grid2_rdh19.csv")
   
   dem_list4 <- dem_split(rrs,habtools::extent(raster(rrs))/2)
   results4 <- lapply(dem_list4,rdh)
@@ -93,7 +93,7 @@ for (rr in files) {
   result4_df$site <- rr
   result4_df$rep <- c(1,3,2,4)
   store4 <- rbind(store4, result4_df)
-  write.csv(store4, "data/grid4_rdh.csv")
+  write.csv(store4, "data/grid4_rdh19.csv")
   
 }
 
@@ -132,7 +132,7 @@ tr$factor <- c(seq(0,7),seq(-1,6),seq(-2,5),seq(-3,4),
 tr$new <- tr$old + (7*tr$factor)
 store1$rep <- rep(tr$new,11)
 
-write.csv(store1, "data/grid1_rdh.csv")
+write.csv(store1, "data/grid1_rdh19.csv")
 
 # S=2m
 #store2 <- read.csv("data/grid2_rdh.csv")
@@ -143,7 +143,7 @@ tr$factor <- c(seq(0,3),seq(-1,2),seq(-2,1),seq(-3,0))
 tr$new <- tr$old + (3*tr$factor)
 store2$rep <- rep(tr$new,11)
 
-write.csv(store2, "data/grid2_rdh.csv")
+write.csv(store2, "data/grid2_rdh19.csv")
 
 # S=4m
 # coded different as reps were already fixed in the loop above
@@ -153,7 +153,7 @@ tr <- data.frame(old = c(1,3,2,4))
 tr$new <- c(1:4)
 store4$rep_ht<- rep(tr$new,11)
 
-write.csv(store4, "data/grid4_rdh.csv")
+write.csv(store4, "data/grid4_rdh19.csv")
 
 # compare site center coords with annotation file ####
 c_rep <- st_transform(coords, crs(ann))

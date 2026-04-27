@@ -10,16 +10,16 @@ library(raster)
 library(stringr)
 
 # Load reference tif and centers
-rr <- rast("data_raw/records2023/OS.tif")
+rr <- rast("data_raw/rr2023/records/OS.tif")
 ann<- st_read("data/lizard_rr_annotations_2023.shp")
 coords <- st_read("data/dem_coords_nov2023.shp")
 c_rep <- st_transform(coords, crs(ann))
 # a plot
-plot(data)
+plot(rr)
 points(c_rep)
 
 ## read file list
-files <- dir("data_raw/rr2019/records")
+files <- dir("data_raw/rr2023/records")
 files <- unique(sub("\\..*", "", files))
 
 
@@ -28,7 +28,7 @@ files <- unique(sub("\\..*", "", files))
 res <- data.frame()
 target_res <- 0.005
 for (rr in files) {
-  data <- rast(paste0("data_raw/rr2019/records/", rr, ".tif"))
+  data <- rast(paste0("data_raw/rr2023/records/", rr, ".tif"))
   data <- project(data, crs(ann))
   site <- rr
   resx <- res(data)[1]
@@ -44,7 +44,7 @@ for (rr in files) {
   resy_re <- res(rr_resampled) [2]
   res <- rbind(res,cbind(site = site, resx = resx, resy = resy,
                          resx_re = resx_re, resy_re = resy_re))
-  writeRaster(rr_resampled, paste0("data/old/dem_reprojected_resampled/",rr,"_repr.tif"))
+  writeRaster(rr_resampled, paste0("data/dem_reprojected_resampled/",rr,"23_repr.tif"))
 }
 write.csv(res[res$site!="HS2",], "outputs/raw_dem_reproj_resolutions.csv")
 
@@ -53,7 +53,7 @@ write.csv(res[res$site!="HS2",], "outputs/raw_dem_reproj_resolutions.csv")
 #seems fine - get tready to loop through
 files <- dir("data/old/dem_reprojected_resampled")
 files <- unique(sub("_.*", "", files))
-files <- str_subset(files,"19")
+files <- str_subset(files,"23")
 files <- files[-4]
 
 ## run this loop for each scale
@@ -70,29 +70,29 @@ c <- st_transform(coords, crs(ann))
 for (rr in files) {
   site <- substr(rr,1,2)
   # Load geotif for reef record
-  data <- rast(paste0("data/dem_reprojected_resampled/", rr, "_repr.tif"))
+  data <- rast(paste0("data/dem_reprojected_resampled/", rr, "23_repr.tif"))
   center <- c[c$rec==site,]
   x0 <- as.numeric(st_coordinates(center)[,1])
   y0 <- as.numeric(st_coordinates(center)[,2])
   rrs <- dem_crop(raster(data),x0,y0,8)
   
-  # dem_list50 <- dem_split(rrs, habtools::extent(raster(rrs)) / 16)
-  # results50 <- lapply(dem_list50, rdh)
-  # result50_df <- do.call(rbind, results50)
-  # result50_df$site <- site
-  # result50_df$rep <- c(1:256)
-  # store50 <- rbind(store50, result50_df)
-  # write.csv(store50, "data/grid50_2023_rdh.csv")
-  # time <- Sys.time()
-  # print(paste("Finished processing site", rr, "for 50cmx50cm grid at", time))
-  
+  dem_list50 <- dem_split(rrs, habtools::extent(raster(rrs)) / 16)
+  results50 <- lapply(dem_list50, rdh)
+  result50_df <- do.call(rbind, results50)
+  result50_df$site <- site
+  result50_df$rep <- c(1:256)
+  store50 <- rbind(store50, result50_df)
+  write.csv(store50, "data/grid50_2023_rdhCBN3.csv")
+  time <- Sys.time()
+  print(paste("Finished processing site", rr, "for 50cmx50cm grid at", time))
+
   dem_list1 <- dem_split(rrs,habtools::extent(raster(rrs))/8)
   results1 <- lapply(dem_list1,rdh)
   result1_df <- do.call(rbind, results1)
   result1_df$site <- site
   result1_df$rep <- c(1:64)
   store1 <- rbind(store1, result1_df)
-  write.csv(store1, "data/grid1_2023_rdhWM.csv")
+  write.csv(store1, "data/grid1_2023_rdhCBN3.csv")
   time <- Sys.time()
   print(paste("Finished processing site", rr, "for 1mx1m grid at", time))
 
@@ -102,9 +102,9 @@ for (rr in files) {
   result2_df$site <- site
   result2_df$rep <- c(1:16)
   store2 <- rbind(store2, result2_df)
-  write.csv(store2, "data/grid2_2023_rdhWM.csv")
+  write.csv(store2, "data/grid2_2023_rdhCBN3.csv")
   time <- Sys.time()
-  paste("Finished processing site", rr, "for 2mx2m grid at", time)
+  print(paste("Finished processing site", rr, "for 2mx2m grid at", time))
 
   dem_list4 <- dem_split(rrs,habtools::extent(raster(rrs))/2)
   results4 <- lapply(dem_list4,rdh)
@@ -112,9 +112,9 @@ for (rr in files) {
   result4_df$site <- site
   result4_df$rep <- c(1,3,2,4)
   store4 <- rbind(store4, result4_df)
-  write.csv(store4, "data/grid4_2023_rdhWM.csv")
+  write.csv(store4, "data/grid4_2023_rdhCBN3.csv")
   time <- Sys.time()
-  paste("Finished processing site", rr, "for 4mx4m grid at", time)
+  print(paste("Finished processing site", rr, "for 4mx4m grid at", time))
 }
 
    # fix rep ID to match rep ID in the count dataset
@@ -128,8 +128,9 @@ tr$factor <- c(seq(0,15),seq(-1,14),seq(-2,13),seq(-3,12),
                seq(-12,3),seq(-13,2),seq(-14,1),seq(-15,0))
 tr$new <- tr$old + (7*tr$factor)
 tr$new <- tr$old + (15*tr$factor)
-store50$rep <- rep(tr$new,9)
-write.csv(store50, "data/grid50_rdh23.csv")
+store50$rep <- rep(tr$new,1)
+#write.csv(store50, "data/grid50_2023_rdh.csv")
+write.csv(store50, "data/grid50_2023_rdhCB.csv")
 
 
 # S=1m
@@ -140,9 +141,10 @@ tr <- data.frame(old = seq(1:64))
 tr$factor <- c(seq(0,7),seq(-1,6),seq(-2,5),seq(-3,4),
                seq(-4,3),seq(-5,2),seq(-6,1),seq(-7,0))
 tr$new <- tr$old + (7*tr$factor)
-store1$rep <- rep(tr$new,18)
+store1$rep <- rep(tr$new,1)
 
-write.csv(store1, "data/grid1_2023_rdh.csv")
+#write.csv(store1, "data/grid1_2023_rdh.csv")
+write.csv(store1, "data/grid1_2023_rdhCB.csv")
 
 # S=2m
 #store2 <- read.csv("data/grid2_2023_rdh.csv")
@@ -151,9 +153,10 @@ store2$rep_ht<- store2$rep
 tr <- data.frame(old = seq(1:16))
 tr$factor <- c(seq(0,3),seq(-1,2),seq(-2,1),seq(-3,0))
 tr$new <- tr$old + (3*tr$factor)
-store2$rep <- rep(tr$new,18)
+store2$rep <- rep(tr$new,1)
 
-write.csv(store2, "data/grid2_2023_rdh.csv")
+#write.csv(store2, "data/grid2_2023_rdh.csv")
+write.csv(store2, "data/grid2_2023_rdhCB.csv")
 
 # S=4m
 # coded different as reps were already fixed in the loop above
@@ -161,9 +164,9 @@ write.csv(store2, "data/grid2_2023_rdh.csv")
 
 tr <- data.frame(old = c(1,3,2,4))
 tr$new <- c(1:4)
-store4$rep_ht<- rep(tr$new,18)
+store4$rep_ht<- rep(tr$new,1)
 
-write.csv(store4, "data/grid4_2023_rdhWS.csv")
+write.csv(store4, "data/grid4_2023_rdhCB.csv")
 
 # compare site center coords with annotation file ####
 c_rep <- st_transform(coords, crs(ann))

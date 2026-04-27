@@ -7,32 +7,36 @@ library(stringr)
 
 # read data ####
 
-paths <- c("data/dt1_2022.csv","data/dt2_2022.csv","data/dt4_2022.csv",
-           "data/dt1_2019.csv", "data/dt2_2019.csv", "data/dt4_2019.csv")
+paths <- c("output/dt50.csv","output/dt1.csv","output/dt2.csv",
+           "output/dt4.csv")
 
 for (path in paths) {
   dt <- read.csv(path)
   dt$site <- as.factor(dt$site)
-  dt$year <- str_sub(path, 10, 13)
-  dt$size <- as.numeric(str_sub(path, 8, 8))
+  dt$year <- as.factor(dt$site)
   
+  fitnb <- brm(
+    n_juv ~ year * (n_adu_log + mean_sett_log + R_log10 + Ds) + (1 | site),
+    data = dt,
+    family = negbinomial(),
+    prior = c(
+      prior(normal(0, 5), class = "b"),      # Weakly informative priors for slopes
+      prior(exponential(1), class = "sd")    # Prior for site-to-site variability
+    )
+  )
   
-  if (unique(dt$year) == "2022" & unique(dt$size) == 1) {
-    #dt1 %>% arrange(desc(H))
-    dt <- dt[dt$H != max(dt$H),]}
+  saveRDS(fitnb,paste0("output/model/brm_nb_",str_sub(path, 8, 10),".rds"))
   
-  
-  fitnb <- brm(n_juv ~ n_adu + mean_sett + R + D +
-                      (1 | site), 
-                    data = dt,
-                    family = negbinomial())
-  saveRDS(fitnb,paste0("outputs/brm_nb_",str_sub(path, 8, 13),".rds"))
-  
-  fitznb <- brm(n_juv ~ n_adu + mean_setr + R + D +
-                  (1 | site), 
-                data = dt1,
-                family = zero_inflated_negbinomial())
-  saveRDS(fitznb,paste0("outputs/brm_znb_",str_sub(path, 8, 13),".rds"))
+  fitznb <- brm(
+    n_juv ~ year * (n_adu_log + mean_sett_log + R_log10 + Ds) + (1 | site),
+    data = dt,
+    family = zero_inflated_negbinomial())
+    prior = c(
+      prior(normal(0, 5), class = "b"),      # Weakly informative priors for slopes
+      prior(exponential(1), class = "sd")    # Prior for site-to-site variability
+    )
+  )
+  saveRDS(fitznb,paste0("output/model/brm_znb_",str_sub(path, 8, 10),".rds"))
   
   
   p <- plot(conditional_effects(fitnb), points = TRUE, ask = FALSE, page = 1)
@@ -62,7 +66,7 @@ for (path in paths) {
     geom_ribbon(aes(ymin = pred_lower, ymax = pred_upper), alpha = 0.2) +
     labs(y = "Predicted juvenile count", x = "Adult count")+
     theme_minimal()
-  ggsave(preds, paste0("outputs/plot_predict_",str_sub(path, 8, 13),".rds"))
+  ggsave(preds, paste0("output/plot_predict_",str_sub(path, 8, 10),".rds"))
   
   # Predicted means
   fitted_vals <- fitted(fitnb)

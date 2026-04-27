@@ -7,21 +7,26 @@ library(parallel)
 library(sf)
 library(habtools)
 library(raster)
+library(dplyr)
 
 # Load reference tif and centers
-rr <- rast("data_raw/rr2019/records/SE19.tif")
-crs(rr)
-ann <- st_read("data_raw/rr2019/annotations/Export_Output_all.shp")
-ann[is.na(ann$Species),]$Species <-"Spp"
-ann <- ann %>% filter(Status != "gone",
-                      Species != "soft")
-
-
+ref <- rast("data/dem_reprojected_resampled/TM19_repr.tif")
 coords <- read.csv("data_raw/rr2019/RR_gps_coords.csv")
 c <- st_as_sf(coords, coords = c("x", "y"), crs = 4326)
-c <- st_transform(c, crs(ann))
+c <- st_transform(c, crs(ref))
 c_df <- cbind(as.data.frame(st_coordinates(c)),c) [,1:3]
 names(c_df) <- c("x_rr","y_rr","site")
+subset_sites <- c(
+  "lagoon_1",
+  "north_reef_3",
+  "gnarly_tree",
+  "corner_beach",
+  "horseshoe",
+  "resort",
+  "southeast",
+  "trimodal",
+  "turtle_beach"
+)
 c_df <- c_df %>%
   mutate(site_full = case_when(
     site == "CP" ~ "cooks_path",
@@ -47,11 +52,8 @@ c_df <- c_df %>%
     site == "WM" ~ "washing_machine")) %>%
   filter(site_full %in% subset_sites)
 
-c <- st_as_sf(c_df, coords = c("x_rr", "y_rr"), crs = crs(ann))
-rr <- terra::project(rr, crs(ann))
-# a plot
-plot(rr)
-points(c)
+c <- st_as_sf(c_df, coords = c("x_rr", "y_rr"), crs = crs(ref))
+
 
 ## read file list
 files <- dir("data_raw/rr2019/records")
@@ -92,6 +94,7 @@ files <- unique(sub("_.*", "", files))
 files <- files[grepl("19", files)]
 
 ## run this loop for each scale
+store50 <- data.frame()
 store1 <- data.frame()
 store2 <- data.frame()
 store4 <- data.frame()
@@ -142,7 +145,7 @@ tr <- data.frame(old = seq(1:64))
 tr$factor <- c(seq(0,7),seq(-1,6),seq(-2,5),seq(-3,4),
                seq(-4,3),seq(-5,2),seq(-6,1),seq(-7,0))
 tr$new <- tr$old + (7*tr$factor)
-store1$rep <- rep(tr$new,18)
+store1$rep <- rep(tr$new,9)
 
 write.csv(store1, "data/grid1_rdh19.csv")
 
@@ -153,7 +156,7 @@ store2$rep_ht<- store2$rep
 tr <- data.frame(old = seq(1:16))
 tr$factor <- c(seq(0,3),seq(-1,2),seq(-2,1),seq(-3,0))
 tr$new <- tr$old + (3*tr$factor)
-store2$rep <- rep(tr$new,18)
+store2$rep <- rep(tr$new,9)
 
 write.csv(store2, "data/grid2_rdh19.csv")
 
@@ -163,41 +166,6 @@ write.csv(store2, "data/grid2_rdh19.csv")
 
 tr <- data.frame(old = c(1,3,2,4))
 tr$new <- c(1:4)
-store4$rep_ht<- rep(tr$new,18)
+store4$rep_ht<- rep(tr$new,9)
 
 write.csv(store4, "data/grid4_rdh19.csv")
-
-### checks ####
-#rdh4 <- read.csv("data/grid4_rdh.csv")
-rdh1 <- store1
-rdh2 <- store2
-rdh4 <- store4
-names(rdh1)
-summary(rdh1)
-rdh1[c(tail(order(rdh1$R))),]
-rdh1[c(head(order(rdh1$R))),]
-
-rdh1[c(tail(order(rdh1$D))),]
-rdh1[c(head(order(rdh1$D))),]
-
-rdh1[c(tail(order(rdh1$H))),]
-rdh1[c(head(order(rdh1$H))),]
-
-rdh2[c(tail(order(rdh2$R))),]
-rdh2[c(head(order(rdh2$R))),]
-
-rdh2[c(tail(order(rdh2$D))),]
-rdh2[c(head(order(rdh2$D))),]
-
-rdh2[c(tail(order(rdh2$H))),]
-rdh2[c(head(order(rdh2$H))),]
-
-rdh4[c(tail(order(rdh4$R))),]
-rdh4[c(head(order(rdh4$R))),]
-
-rdh4[c(tail(order(rdh4$D))),]
-rdh4[c(head(order(rdh4$D))),]
-
-rdh4[c(tail(order(rdh4$H))),]
-rdh4[c(head(order(rdh4$H))),]
-
