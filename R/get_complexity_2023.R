@@ -54,7 +54,6 @@ write.csv(res[res$site!="HS2",], "outputs/raw_dem_reproj_resolutions.csv")
 files <- dir("data/old/dem_reprojected_resampled")
 files <- unique(sub("_.*", "", files))
 files <- str_subset(files,"23")
-files <- files[-4]
 
 ## run this loop for each scale
 store50 <- data.frame()

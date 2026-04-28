@@ -2,18 +2,112 @@
 
 library(brms)
 library(ggplot2)
-library(dplyr)
 library(stringr)
+library(tidyverse)
+library(tidybayes)
+library(patchwork)
 
 # read data ####
 
 paths <- c("output/dt50.csv","output/dt1.csv","output/dt2.csv",
            "output/dt4.csv")
 
+
+## functions for plots #####
+
+coef_plot <- function(fit) {
+  
+  library(tidyverse)
+  library(tidybayes)
+  library(posterior)
+  
+  draws <- as_draws_df(fit) %>% as_tibble()
+  
+  # fixed effects
+  fix_df <- draws %>%
+    select(starts_with("b_")) %>%
+    pivot_longer(
+      everything(),
+      names_to = "term",
+      values_to = "value"
+    ) %>%
+    mutate(
+      term = str_remove(term, "^b_"),
+      group = "Fixed"
+    )
+  
+  # random effects
+  re_df <- draws %>%
+    select(matches("^r_site\\[.*,Intercept\\]$")) %>%
+    pivot_longer(
+      everything(),
+      names_to = "term",
+      values_to = "value"
+    ) %>%
+    mutate(
+      term = str_extract(term, "(?<=\\[).*(?=,)"),
+      term = paste0("site: ", term),
+      group = "Random"
+    )
+  
+  all_df <- bind_rows(fix_df, re_df)
+  
+  sum_df <- all_df %>%
+    group_by(group, term) %>%
+    median_qi(value, .width = c(.90, .95)) %>%
+    ungroup()
+  
+  ggplot(sum_df,
+         aes(x = value,
+             y = fct_reorder(term, value))) +
+    
+    geom_vline(xintercept = 0, linetype = 2) +
+    
+    geom_linerange(
+      data = filter(sum_df, .width == 0.95),
+      aes(xmin = .lower, xmax = .upper),
+      linewidth = 1.4
+    ) +
+    
+    geom_linerange(
+      data = filter(sum_df, .width == 0.90),
+      aes(xmin = .lower, xmax = .upper),
+      linewidth = 0.6
+    ) +
+    
+    geom_point(size = 2) +
+    
+    facet_wrap(~group, scales = "free_y", ncol = 2) +
+    
+    theme_bw(base_size = 12) +
+    theme(
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor = element_blank()
+    ) +
+    
+    labs(x = "Estimate", y = NULL)
+}
+
+obs_pred_plot <- function(fit, dt) {
+  dt$pred <- fitted(fit)[, "Estimate"]
+  ggplot(dt, aes(x = pred, y = n_juv)) +
+    geom_point(alpha = 0.7, size = 2) +
+    geom_abline(slope = 1, intercept = 0, linetype = 2) +
+    geom_smooth(method = "lm", se = FALSE) +
+    theme_bw(base_size = 12) +
+    labs(
+      x = "Predicted",
+      y = "Observed",
+      title = "Observed vs Predicted"
+    )
+}
+
+
+
 for (path in paths) {
   dt <- read.csv(path)
   dt$site <- as.factor(dt$site)
-  dt$year <- as.factor(dt$site)
+  dt$year <- as.factor(dt$year)
   
   fitnb <- brm(
     n_juv ~ year * (n_adu_log + mean_sett_log + R_log10 + Ds) + (1 | site),
@@ -25,12 +119,29 @@ for (path in paths) {
     )
   )
   
-  saveRDS(fitnb,paste0("output/model/brm_nb_",str_sub(path, 8, 10),".rds"))
+  saveRDS(fitnb,paste0("output/models/brm_nb_",str_sub(path, 8, 10),".rds"))
+  
+  ggsave(
+    file.path("figures", paste0("coef_nb_", str_sub(path, 8, 10), ".png")),
+    coef_plot(fitnb),
+    width = 10, height = 12, dpi = 300
+  )
+  
+  png(file.path("figures", paste0("ppcheck_nb_", str_sub(path, 8, 10), ".png")),
+      width = 1800, height = 1200, res = 220)
+  print(pp_check(fitnb, ndraws = 100))
+  dev.off()
+  
+  ggsave(
+    file.path("figures", paste0("obspred_nb_", str_sub(path, 8, 10), ".png")),
+    obs_pred_plot(fitnb, dt),
+    width = 8, height = 6, dpi = 300
+  )
   
   fitznb <- brm(
     n_juv ~ year * (n_adu_log + mean_sett_log + R_log10 + Ds) + (1 | site),
     data = dt,
-    family = zero_inflated_negbinomial())
+    family = zero_inflated_negbinomial(),
     prior = c(
       prior(normal(0, 5), class = "b"),      # Weakly informative priors for slopes
       prior(exponential(1), class = "sd")    # Prior for site-to-site variability
@@ -38,6 +149,25 @@ for (path in paths) {
   )
   saveRDS(fitznb,paste0("output/model/brm_znb_",str_sub(path, 8, 10),".rds"))
   
+  ggsave(
+    file.path("figures", paste0("coef_znb_", str_sub(path, 8, 10), ".png")),
+    coef_plot(fitznb),
+    width = 10, height = 12, dpi = 300
+  )
+  
+  png(file.path("figures", paste0("ppcheck_znb_", str_sub(path, 8, 10), ".png")),
+      width = 1800, height = 1200, res = 220)
+  print(pp_check(fitznb, ndraws = 100))
+  dev.off()
+  
+  ggsave(
+    file.path("figures", paste0("obspred_znb_", str_sub(path, 8, 10), ".png")),
+    obs_pred_plot(fitznb, dt),
+    width = 8, height = 6, dpi = 300
+  )
+  
+  
+}
   
   p <- plot(conditional_effects(fitnb), points = TRUE, ask = FALSE, page = 1)
   
