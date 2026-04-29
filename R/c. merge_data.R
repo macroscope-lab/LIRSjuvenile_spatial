@@ -82,7 +82,7 @@ names(s23) <- c("site","mean_sett")
 
 counts23 <- read.csv("output/grid_counts_2023.csv") 
 names(counts23)
-counts23 <- counts23 %>%
+counts23 <- counts23 %>% filter(site != "corner_beach") %>%
   mutate(site = case_when(
     site == "cooks_path" ~ "CP",
     site == "corner_beach" ~ "CB",
@@ -106,6 +106,8 @@ counts23 <- counts23 %>%
     site == "vickis" ~ "VK",
     site == "washing_machine" ~ "WM",
   ))
+  
+
 geom23_50 <- read.csv("data/grid50_rdh23.csv")
 geom23_50N3 <- read.csv("data/grid50_rdh23N3.csv")
 geom23_50 <- rbind(geom23_50,geom23_50N3, geom23_50CB)
