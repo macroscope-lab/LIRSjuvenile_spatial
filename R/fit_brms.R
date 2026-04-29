@@ -6,6 +6,7 @@ library(stringr)
 library(tidyverse)
 library(tidybayes)
 library(patchwork)
+library(posterior)
 
 # read data ####
 
@@ -16,10 +17,6 @@ paths <- c("output/dt50.csv","output/dt1.csv","output/dt2.csv",
 ## functions for plots #####
 
 coef_plot <- function(fit) {
-  
-  library(tidyverse)
-  library(tidybayes)
-  library(posterior)
   
   draws <- as_draws_df(fit) %>% as_tibble()
   
@@ -37,7 +34,7 @@ coef_plot <- function(fit) {
     )
   
   # random effects
-  re_df <- draws %>%
+  re_df_site <- draws %>%
     select(matches("^r_site\\[.*,Intercept\\]$")) %>%
     pivot_longer(
       everything(),
@@ -50,7 +47,20 @@ coef_plot <- function(fit) {
       group = "Random"
     )
   
-  all_df <- bind_rows(fix_df, re_df)
+  re_df_year<- draws %>%
+    select(matches("^r_year\\[.*,Intercept\\]$")) %>%
+    pivot_longer(
+      everything(),
+      names_to = "term",
+      values_to = "value"
+    ) %>%
+    mutate(
+      term = str_extract(term, "(?<=\\[).*(?=,)"),
+      term = paste0("year: ", term),
+      group = "Random"
+    )
+  
+  all_df <- bind_rows(fix_df, re_df_site, re_df_year)
   
   sum_df <- all_df %>%
     group_by(group, term) %>%
@@ -60,25 +70,19 @@ coef_plot <- function(fit) {
   ggplot(sum_df,
          aes(x = value,
              y = fct_reorder(term, value))) +
-    
     geom_vline(xintercept = 0, linetype = 2) +
-    
     geom_linerange(
       data = filter(sum_df, .width == 0.95),
       aes(xmin = .lower, xmax = .upper),
       linewidth = 1.4
     ) +
-    
     geom_linerange(
       data = filter(sum_df, .width == 0.90),
       aes(xmin = .lower, xmax = .upper),
       linewidth = 0.6
     ) +
-    
     geom_point(size = 2) +
-    
     facet_wrap(~group, scales = "free_y", ncol = 2) +
-    
     theme_bw(base_size = 12) +
     theme(
       panel.grid.major.y = element_blank(),
@@ -103,24 +107,87 @@ obs_pred_plot <- function(fit, dt) {
 }
 
 
-
 for (path in paths) {
   dt <- read.csv(path)
   dt$site <- as.factor(dt$site)
   dt$year <- as.factor(dt$year)
   
-  fitnb <- brm(
-    n_juv ~ year * (n_adu_log + mean_sett_log + R_log10 + Ds) + (1 | site),
+  fitnb_full <- brm(
+    n_juv ~ n_adu_log + mean_sett_log + R_log10 + Ds + (1|year) + (1 | site),
     data = dt,
-    family = negbinomial(),
-    prior = c(
-      prior(normal(0, 5), class = "b"),      # Weakly informative priors for slopes
-      prior(exponential(1), class = "sd")    # Prior for site-to-site variability
-    )
-  )
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    family = negbinomial())
+  saveRDS(fitnb_full,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_full.rds"))
   
-  saveRDS(fitnb,paste0("output/models/brm_nb_",str_sub(path, 8, 10),".rds"))
+  fitnb_inter <- brm(
+    n_juv ~ n_adu_log*(mean_sett_log + R_log10 + Ds) + (1|year) + (1 | site),
+    data = dt,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    family = negbinomial())
+  saveRDS(fitnb_inter,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_full_inter.rds"))
   
+  fitnb_nosett <- brm(
+    n_juv ~ n_adu_log + R_log10 + Ds + (1|year) + (1 | site),
+    data = dt,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    family = negbinomial())
+  saveRDS(fitnb_nosett,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_nosett.rds"))
+  
+  fitnb_Ra <- brm(
+    n_juv ~ n_adu_log + R_log10 + (1|year) + (1 | site),
+    data = dt,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    family = negbinomial())
+  saveRDS(fitnb_Ra,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_Ra.rds"))
+  
+  fitnb_Ra_int <- brm(
+    n_juv ~ n_adu_log * R_log10 + (1|year) + (1 | site),
+    data = dt,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    family = negbinomial())
+  saveRDS(fitnb_Ra_int,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_Ra_int.rds"))
+  
+  fitnb_Da <- brm(
+    n_juv ~ n_adu_log + Ds + (1|year) + (1 | site),
+    data = dt,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    family = negbinomial())
+  saveRDS(fitnb_Da,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_Da.rds"))
+  
+  fitnb_Da_int <- brm(
+    n_juv ~ n_adu_log * Ds + (1|year) + (1 | site),
+    data = dt,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    family = negbinomial())
+  saveRDS(fitnb_Da_int,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_Da_int.rds"))
+  
+  fitnb_DR <- brm(
+    n_juv ~ R_log10 + Ds + (1|year) + (1 | site),
+    data = dt,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.90, max_treedepth = 15),
+    family = negbinomial())
+  saveRDS(fitnb_DR,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_DR.rds"))
+  
+  fitnb_DR_int <- brm(
+    n_juv ~ R_log10 + Ds + (1|year) + (1 | site),
+    data = dt,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    family = negbinomial())
+  saveRDS(fitnb_DR_int,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_DR_int.rds"))
+}
+
+
+
+
   ggsave(
     file.path("figures", paste0("coef_nb_", str_sub(path, 8, 10), ".png")),
     coef_plot(fitnb),
@@ -138,37 +205,42 @@ for (path in paths) {
     width = 8, height = 6, dpi = 300
   )
   
-  fitznb <- brm(
-    n_juv ~ year * (n_adu_log + mean_sett_log + R_log10 + Ds) + (1 | site),
-    data = dt,
-    family = zero_inflated_negbinomial(),
-    prior = c(
-      prior(normal(0, 5), class = "b"),      # Weakly informative priors for slopes
-      prior(exponential(1), class = "sd")    # Prior for site-to-site variability
-    )
-  )
-  saveRDS(fitznb,paste0("output/model/brm_znb_",str_sub(path, 8, 10),".rds"))
-  
-  ggsave(
-    file.path("figures", paste0("coef_znb_", str_sub(path, 8, 10), ".png")),
-    coef_plot(fitznb),
-    width = 10, height = 12, dpi = 300
-  )
-  
-  png(file.path("figures", paste0("ppcheck_znb_", str_sub(path, 8, 10), ".png")),
-      width = 1800, height = 1200, res = 220)
-  print(pp_check(fitznb, ndraws = 100))
-  dev.off()
-  
-  ggsave(
-    file.path("figures", paste0("obspred_znb_", str_sub(path, 8, 10), ".png")),
-    obs_pred_plot(fitznb, dt),
-    width = 8, height = 6, dpi = 300
-  )
+  # fitznb <- brm(
+  #   n_juv ~ n_adu_log + mean_sett_log + R_log10 + Ds + (1|year) + (1 | site),
+  #   data = dt,
+  #   family = zero_inflated_negbinomial(),
+  #   prior = c(
+  #     prior(normal(0, 5), class = "b"),      # Weakly informative priors for slopes
+  #     prior(exponential(1), class = "sd")    # Prior for site-to-site variability
+  #   )
+  # )
+  # saveRDS(fitznb,paste0("output/models/brm_znb_",str_sub(path, 8, 10),".rds"))
+  # 
+  # ggsave(
+  #   file.path("figures", paste0("coef_znb_", str_sub(path, 8, 10), ".png")),
+  #   coef_plot(fitznb),
+  #   width = 10, height = 12, dpi = 300
+  # )
+  # 
+  # png(file.path("figures", paste0("ppcheck_znb_", str_sub(path, 8, 10), ".png")),
+  #     width = 1800, height = 1200, res = 220)
+  # print(pp_check(fitznb, ndraws = 100))
+  # dev.off()
+  # 
+  # ggsave(
+  #   file.path("figures", paste0("obspred_znb_", str_sub(path, 8, 10), ".png")),
+  #   obs_pred_plot(fitznb, dt),
+  #   width = 8, height = 6, dpi = 300
+  # )
   
   
 }
-  
+
+
+
+
+
+
   p <- plot(conditional_effects(fitnb), points = TRUE, ask = FALSE, page = 1)
   
   

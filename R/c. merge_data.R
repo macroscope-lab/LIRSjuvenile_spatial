@@ -108,22 +108,18 @@ counts23 <- counts23 %>%
   ))
 geom23_50 <- read.csv("data/grid50_rdh23.csv")
 geom23_50N3 <- read.csv("data/grid50_rdh23N3.csv")
-geom23_50CB <- read.csv("data/grid50_2023_rdhCB.csv")
 geom23_50 <- rbind(geom23_50,geom23_50N3, geom23_50CB)
 geom23_50$scale <- 0.5
 geom23_1 <- read.csv("data/grid1_rdh23.csv")
 geom23_1N3 <- read.csv("data/grid1_2023_rdhN3.csv")
-geom23_1CB <- read.csv("data/grid1_2023_rdhCB.csv")
 geom23_1 <- rbind(geom23_1,geom23_1N3, geom23_1CB)
 geom23_1$scale <- 1
 geom23_2 <- read.csv("data/grid2_rdh23.csv")
 geom23_2N3 <- read.csv("data/grid2_2023_rdhN3.csv")
-geom23_2CB <- read.csv("data/grid2_2023_rdhCB.csv")
 geom23_2 <- rbind(geom23_2,geom23_2N3, geom23_2CB)
 geom23_2$scale <- 2
 geom23_4 <- read.csv("data/grid4_rdh23.csv")
 geom23_4N3 <- read.csv("data/grid4_2023_rdhN3.csv")
-geom23_4CB <- read.csv("data/grid4_2023_rdhCB.csv")
 geom23_4 <- rbind(geom23_4,geom23_4N3, geom23_4CB)
 geom23_4$scale <- 4
 
