@@ -10,7 +10,7 @@ library(posterior)
 
 # read data ####
 
-paths <- c("output/dt50.csv","output/dt1.csv","output/dt2.csv",
+paths <- c("output/dt1.csv", "output/dt50.csv", "output/dt2.csv",
            "output/dt4.csv")
 
 
@@ -111,17 +111,29 @@ for (path in paths) {
   dt <- read.csv(path)
   dt$site <- as.factor(dt$site)
   dt$year <- as.factor(dt$year)
+  dt$n_adu_log_c     <- scale(dt$n_adu_log, scale = FALSE)
+  dt$mean_sett_log_c <- scale(dt$mean_sett_log, scale = FALSE)
+  dt$R_log10_c       <- scale(dt$R_log10, scale = FALSE)
+  dt$Dc            <- scale(dt$D, scale = FALSE)
   
   fitnb_full <- brm(
-    n_juv ~ n_adu_log + mean_sett_log + R_log10 + Ds + (1|year) + (1 | site),
+    n_juv ~ n_adu_log_c + mean_sett_log_c + R_log10_c + Dc + (1|year) + (1 | site),
     data = dt,
     iter = 10000, warmup = 2000, thin = 5,
     control = list(adapt_delta = 0.98, max_treedepth = 15),
     family = negbinomial())
   saveRDS(fitnb_full,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_full.rds"))
   
+  fitnb_full_noyear <- brm(
+    n_juv ~ n_adu_log_c + mean_sett_log_c + R_log10_c + Dc + (1 | site),
+    data = dt,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    family = negbinomial())
+  saveRDS(fitnb_full_noyear,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_full_noyear.rds"))
+  
   fitnb_inter <- brm(
-    n_juv ~ n_adu_log*(mean_sett_log + R_log10 + Ds) + (1|year) + (1 | site),
+    n_juv ~ n_adu_log_c*(mean_sett_log_c + R_log10_c + Dc) + (1|year) + (1 | site),
     data = dt,
     iter = 10000, warmup = 2000, thin = 5,
     control = list(adapt_delta = 0.98, max_treedepth = 15),
@@ -129,7 +141,7 @@ for (path in paths) {
   saveRDS(fitnb_inter,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_full_inter.rds"))
   
   fitnb_nosett <- brm(
-    n_juv ~ n_adu_log + R_log10 + Ds + (1|year) + (1 | site),
+    n_juv ~ n_adu_log_c + R_log10_c + Dc + (1|year) + (1 | site),
     data = dt,
     iter = 10000, warmup = 2000, thin = 5,
     control = list(adapt_delta = 0.98, max_treedepth = 15),
@@ -137,7 +149,7 @@ for (path in paths) {
   saveRDS(fitnb_nosett,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_nosett.rds"))
   
   fitnb_Ra <- brm(
-    n_juv ~ n_adu_log + R_log10 + (1|year) + (1 | site),
+    n_juv ~ n_adu_log_c + R_log10_c + (1|year) + (1 | site),
     data = dt,
     iter = 10000, warmup = 2000, thin = 5,
     control = list(adapt_delta = 0.98, max_treedepth = 15),
@@ -145,7 +157,7 @@ for (path in paths) {
   saveRDS(fitnb_Ra,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_Ra.rds"))
   
   fitnb_Ra_int <- brm(
-    n_juv ~ n_adu_log * R_log10 + (1|year) + (1 | site),
+    n_juv ~ n_adu_log_c * R_log10_c + (1|year) + (1 | site),
     data = dt,
     iter = 10000, warmup = 2000, thin = 5,
     control = list(adapt_delta = 0.98, max_treedepth = 15),
@@ -153,7 +165,7 @@ for (path in paths) {
   saveRDS(fitnb_Ra_int,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_Ra_int.rds"))
   
   fitnb_Da <- brm(
-    n_juv ~ n_adu_log + Ds + (1|year) + (1 | site),
+    n_juv ~ n_adu_log_c + Dc + (1|year) + (1 | site),
     data = dt,
     iter = 10000, warmup = 2000, thin = 5,
     control = list(adapt_delta = 0.98, max_treedepth = 15),
@@ -161,7 +173,7 @@ for (path in paths) {
   saveRDS(fitnb_Da,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_Da.rds"))
   
   fitnb_Da_int <- brm(
-    n_juv ~ n_adu_log * Ds + (1|year) + (1 | site),
+    n_juv ~ n_adu_log_c * Dc + (1|year) + (1 | site),
     data = dt,
     iter = 10000, warmup = 2000, thin = 5,
     control = list(adapt_delta = 0.98, max_treedepth = 15),
@@ -169,7 +181,7 @@ for (path in paths) {
   saveRDS(fitnb_Da_int,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_Da_int.rds"))
   
   fitnb_DR <- brm(
-    n_juv ~ R_log10 + Ds + (1|year) + (1 | site),
+    n_juv ~ R_log10_c + Dc + (1|year) + (1 | site),
     data = dt,
     iter = 10000, warmup = 2000, thin = 5,
     control = list(adapt_delta = 0.90, max_treedepth = 15),
@@ -177,15 +189,46 @@ for (path in paths) {
   saveRDS(fitnb_DR,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_DR.rds"))
   
   fitnb_DR_int <- brm(
-    n_juv ~ R_log10 + Ds + (1|year) + (1 | site),
+    n_juv ~ R_log10_c + Dc + (1|year) + (1 | site),
     data = dt,
     iter = 10000, warmup = 2000, thin = 5,
     control = list(adapt_delta = 0.98, max_treedepth = 15),
     family = negbinomial())
   saveRDS(fitnb_DR_int,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_DR_int.rds"))
-}
 
-
+  fitnb_a <- brm(
+    n_juv ~ n_adu_log_c + (1|year) + (1 | site),
+    data = dt,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    family = negbinomial())
+  saveRDS(fitnb_a,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_a.rds"))
+  
+  fitnb_s <- brm(
+    n_juv ~ mean_sett_log_c + (1|year) + (1 | site),
+    data = dt,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    family = negbinomial())
+  saveRDS(fitnb_s,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_s.rds"))
+  
+  fitnb_R <- brm(
+    n_juv ~ R_log10_c + (1|year) + (1 | site),
+    data = dt,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    family = negbinomial())
+  saveRDS(fitnb_R,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_R.rds"))
+  
+  fitnb_D <- brm(
+    n_juv ~ Dc + (1|year) + (1 | site),
+    data = dt,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    family = negbinomial())
+  saveRDS(fitnb_D,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_D.rds"))
+  
+  }
 
 
   ggsave(
@@ -193,18 +236,18 @@ for (path in paths) {
     coef_plot(fitnb),
     width = 10, height = 12, dpi = 300
   )
-  
+
   png(file.path("figures", paste0("ppcheck_nb_", str_sub(path, 8, 10), ".png")),
       width = 1800, height = 1200, res = 220)
   print(pp_check(fitnb, ndraws = 100))
   dev.off()
-  
+
   ggsave(
     file.path("figures", paste0("obspred_nb_", str_sub(path, 8, 10), ".png")),
     obs_pred_plot(fitnb, dt),
     width = 8, height = 6, dpi = 300
   )
-  
+
   # fitznb <- brm(
   #   n_juv ~ n_adu_log + mean_sett_log + R_log10 + Ds + (1|year) + (1 | site),
   #   data = dt,
@@ -215,25 +258,25 @@ for (path in paths) {
   #   )
   # )
   # saveRDS(fitznb,paste0("output/models/brm_znb_",str_sub(path, 8, 10),".rds"))
-  # 
+  #
   # ggsave(
   #   file.path("figures", paste0("coef_znb_", str_sub(path, 8, 10), ".png")),
   #   coef_plot(fitznb),
   #   width = 10, height = 12, dpi = 300
   # )
-  # 
+  #
   # png(file.path("figures", paste0("ppcheck_znb_", str_sub(path, 8, 10), ".png")),
   #     width = 1800, height = 1200, res = 220)
   # print(pp_check(fitznb, ndraws = 100))
   # dev.off()
-  # 
+  #
   # ggsave(
   #   file.path("figures", paste0("obspred_znb_", str_sub(path, 8, 10), ".png")),
   #   obs_pred_plot(fitznb, dt),
   #   width = 8, height = 6, dpi = 300
   # )
-  
-  
+
+
 }
 
 
@@ -242,8 +285,8 @@ for (path in paths) {
 
 
   p <- plot(conditional_effects(fitnb), points = TRUE, ask = FALSE, page = 1)
-  
-  
+
+
   newdata <- data.frame(
     n_adu = seq(min(dt$n_adu), max(dt$n_adu), length.out = 100),
     mean_sett = 0,
@@ -251,17 +294,17 @@ for (path in paths) {
     D = 0,
     site = "horseshoe"  # typical site level
   )
-  
+
   # Get predicted values with uncertainty
   preds <- posterior_epred(fitnb, newdata = newdata, allow_new_levels = TRUE)
   preds2 <- posterior_predict(fitnb, newdata = newdata, allow_new_levels = TRUE)
-  
+
 
   # Summarize
   pred_mean <- apply(preds, 2, mean)
   pred_lower <- apply(preds, 2, quantile, probs = 0.05)
   pred_upper <- apply(preds, 2, quantile, probs = 0.95)
-  
+
   # Plot
   pred <- ggplot(newdata, aes(x = n_adu, y = pred_mean)) +
     geom_line() +
@@ -269,51 +312,51 @@ for (path in paths) {
     labs(y = "Predicted juvenile count", x = "Adult count")+
     theme_minimal()
   ggsave(preds, paste0("output/plot_predict_",str_sub(path, 8, 10),".rds"))
-  
+
   # Predicted means
   fitted_vals <- fitted(fitnb)
-  
+
   # Plot predicted vs. observed
   ggplot(data = dt1, aes(y = fitted_vals[, "Estimate"], x = n_juv, col = site)) +
     geom_point(alpha = 0.4) +
     geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
     labs(y = "Predicted juvenile count", x = "Observed juvenile count") +
     theme_minimal()
-  
+
   ggplot(data = dt4, aes(y = n_juv, x = R, col = site)) +
     geom_point(alpha = 0.4) +
     geom_smooth()+
     geom_smooth(aes(y = n_juv, x = R), col = "black")+
     labs(y = "juvenile count", x = "R") +
     theme_minimal()
-  
+
   ggplot(data = dt4, aes(y = n_juv, x = D, col = site)) +
     geom_point(alpha = 0.4) +
     geom_smooth()+
     geom_smooth(aes(y = n_juv, x = D), col = "black")+
     labs(y = "juvenile count", x = "D") +
     theme_minimal()
-  
-  
+
+
   ranef_vals <- ranef(fitnb)$site[, , "Intercept"]
   site_re_df <- as.data.frame(ranef_vals)
   site_re_df$site <- rownames(ranef_vals)
   site_re_df <- site_re_df[, c("site", "Estimate", "Q2.5", "Q97.5")]
-  
+
   ggplot(site_re_df, aes(x = reorder(site, Estimate), y = Estimate)) +
     geom_point() +
     geom_pointrange(aes(ymin = Q2.5, ymax = Q97.5), linewidth = 1) +
     geom_hline(yintercept = 0, linetype = "dashed") +
     coord_flip() +
-    labs(x = "Site", y = "Random Intercept Estimate", 
+    labs(x = "Site", y = "Random Intercept Estimate",
          title = "Site Random Effects") +
     theme_minimal()
-  
-  
+
+
   fixef_df <- as.data.frame(fixef(fitnb))[2:5,]
   fixef_df$term <- rownames(fixef_df)
   fixef_df <- fixef_df[, c("term", "Estimate", "Q2.5", "Q97.5")]
-  
+
   ggplot(fixef_df, aes(x = reorder(term, Estimate), y = Estimate)) +
     geom_point() +
     geom_pointrange(aes(ymin = Q2.5, ymax = Q97.5), linewidth = 1) +
@@ -322,10 +365,10 @@ for (path in paths) {
     labs(x = "Fixed Effect", y = "Estimate",
          title = "Fixed Effects (Posterior Means & 95% CI)") +
     theme_minimal()
-  
-  
+
+
   bayesplot::ppc_dens_overlay(y = dt1$n_juv, yrep = posterior_predict(fitnb, draws = 100))
-  
+
 }
 
 
@@ -337,10 +380,10 @@ dt1$year <- as.factor("2022")
 
 
 # delete GT square with depth issues
-if (unique(dt1$year) == "2022") 
+if (unique(dt1$year) == "2022")
   {#dt1 %>% arrange(desc(H))
   dt1 <- dt1[dt1$H != max(dt1$H),]}
- 
+
 # dt1 %>% group_by(site,year)%>%mutate(av_R = mean(R)) %>% select(site, year,av_R) %>% unique() %>% arrange(year,av_R)
 # dt1 %>% group_by(site,year)%>%mutate(av_adu = mean(n_adu)) %>% select(site, year,av_adu) %>% unique() %>% arrange(year,av_adu)
 # dt1 %>% group_by(site,year)%>%mutate(av_juv = mean(n_juv)) %>% select(site, year,av_juv) %>% unique() %>% arrange(year,av_juv)
@@ -360,25 +403,25 @@ plot(summary_data$mean_count, summary_data$var_count,
      xlab = "Mean", ylab = "Variance", main = "Mean-Variance across sites - 1x1m, 2022")
 
 poisson_model <- glmer(n_juv ~ n_adu_log + mean_sett_s + R_log10 + D_s +
-                         (1 | site), 
+                         (1 | site),
                        data = dt1,
                        family = poisson)
 
 fitznb <- brm(n_juv ~ n_adu_log + mean_sett_s + R_log10 + D_s +
-              (1 | site), 
+              (1 | site),
             data = dt1,
             family = zero_inflated_negbinomial())
 fitnb <- brm(n_juv ~ n_adu + mean_sett + R + D +
-                (1 | site), 
+                (1 | site),
               data = dt1,
               family = negbinomial())
 fitznb_nat <- brm(n_juv ~ n_adu + mean_sett + R + D +
-                (1 | site), 
+                (1 | site),
               data = dt1,
               family = zero_inflated_negbinomial())
 
 fithnb <- brm(n_juv ~ n_adu + mean_sett + R + D +
-              (1 | site), 
+              (1 | site),
             data = dt1,
             family = hurdle_negbinomial())
 loo(fitnb,fitznb_nat)
@@ -393,7 +436,7 @@ plot(conditional_effects(fitznb, effects = "n_adu_log"))
 
 
 fitnb <- brm(n_juv ~ n_adu + mean_sett + R + D +
-               (1 | site), 
+               (1 | site),
              data = dt1,
              family = negbinomial())
 
@@ -404,7 +447,7 @@ fitnb <- brm(n_juv ~ n_adu + mean_sett + R + D +
 
 
 fitnb <- brm(n_juv ~ n_adu + mean_sett + R + D +
-               (1 | site), 
+               (1 | site),
              data = dt2,
              family = negbinomial())
 
@@ -420,7 +463,7 @@ ggplot(site_re_df, aes(x = reorder(site, Estimate), y = Estimate)) +
   geom_pointrange(aes(ymin = Q2.5, ymax = Q97.5), linewidth = 1) +
   geom_hline(yintercept = 0, linetype = "dashed") +
   coord_flip() +
-  labs(x = "Site", y = "Random Intercept Estimate", 
+  labs(x = "Site", y = "Random Intercept Estimate",
        title = "Site Random Effects") +
   theme_minimal()
 
@@ -443,7 +486,7 @@ ggplot(fixef_df, aes(x = reorder(term, Estimate), y = Estimate)) +
 
 
 fitnb <- brm(n_juv ~ n_adu + mean_sett + R + D +
-               (1 | site), 
+               (1 | site),
              data = dt4,
              family = negbinomial())
 
@@ -459,7 +502,7 @@ ggplot(site_re_df, aes(x = reorder(site, Estimate), y = Estimate)) +
   geom_pointrange(aes(ymin = Q2.5, ymax = Q97.5), linewidth = 1) +
   geom_hline(yintercept = 0, linetype = "dashed") +
   coord_flip() +
-  labs(x = "Site", y = "Random Intercept Estimate", 
+  labs(x = "Site", y = "Random Intercept Estimate",
        title = "Site Random Effects") +
   theme_minimal()
 
@@ -484,7 +527,7 @@ dt1$site <- as.factor(dt1$site)
 dt1$year <- as.factor("2019")
 
 fitnb <- brm(n_juv ~ n_adu + mean_sett + R + D +
-               (1 | site), 
+               (1 | site),
              data = dt1,
              family = negbinomial())
 
@@ -500,7 +543,7 @@ ggplot(site_re_df, aes(x = reorder(site, Estimate), y = Estimate)) +
   geom_pointrange(aes(ymin = Q2.5, ymax = Q97.5), linewidth = 1) +
   geom_hline(yintercept = 0, linetype = "dashed") +
   coord_flip() +
-  labs(x = "Site", y = "Random Intercept Estimate", 
+  labs(x = "Site", y = "Random Intercept Estimate",
        title = "Site Random Effects") +
   theme_minimal()
 
@@ -527,7 +570,7 @@ dt2$site <- as.factor(dt2$site)
 dt2$year <- as.factor("2019")
 
 fitnb <- brm(n_juv ~ n_adu + mean_sett + R + D +
-               (1 | site), 
+               (1 | site),
              data = dt2,
              family = negbinomial())
 
@@ -543,7 +586,7 @@ ggplot(site_re_df, aes(x = reorder(site, Estimate), y = Estimate)) +
   geom_pointrange(aes(ymin = Q2.5, ymax = Q97.5), linewidth = 1) +
   geom_hline(yintercept = 0, linetype = "dashed") +
   coord_flip() +
-  labs(x = "Site", y = "Random Intercept Estimate", 
+  labs(x = "Site", y = "Random Intercept Estimate",
        title = "Site Random Effects") +
   theme_minimal()
 
@@ -568,7 +611,7 @@ dt4$site <- as.factor(dt4$site)
 dt4$year <- as.factor("2019")
 
 fitnb <- brm(n_juv ~ n_adu + mean_sett + R + D +
-               (1 | site), 
+               (1 | site),
              data = dt4,
              family = negbinomial())
 
@@ -584,7 +627,7 @@ ggplot(site_re_df, aes(x = reorder(site, Estimate), y = Estimate)) +
   geom_pointrange(aes(ymin = Q2.5, ymax = Q97.5), linewidth = 1) +
   geom_hline(yintercept = 0, linetype = "dashed") +
   coord_flip() +
-  labs(x = "Site", y = "Random Intercept Estimate", 
+  labs(x = "Site", y = "Random Intercept Estimate",
        title = "Site Random Effects") +
   theme_minimal()
 
