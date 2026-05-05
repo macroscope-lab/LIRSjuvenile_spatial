@@ -7,6 +7,7 @@ library(tidyverse)
 library(tidybayes)
 library(patchwork)
 library(posterior)
+library(cmdstanr)
 
 # read data ####
 
@@ -115,14 +116,91 @@ for (path in paths) {
   dt$mean_sett_log_c <- scale(dt$mean_sett_log, scale = FALSE)
   dt$R_log10_c       <- scale(dt$R_log10, scale = FALSE)
   dt$Dc            <- scale(dt$D, scale = FALSE)
+  dt$n_adu_log_s     <- scale(dt$n_adu_log)
+  dt$mean_sett_log_s <- scale(dt$mean_sett_log)
+  dt$R_log10_s       <- scale(dt$R_log10)
+  dt$Ds            <- scale(dt$D)
   
-  fitnb_full <- brm(
+  dt23 <- dt[dt$year == 2023,]
+  dt19 <- dt[dt$year == 2019,]
+  
+  fitnb_full_c <- brm(
     n_juv ~ n_adu_log_c + mean_sett_log_c + R_log10_c + Dc + (1|year) + (1 | site),
     data = dt,
     iter = 10000, warmup = 2000, thin = 5,
     control = list(adapt_delta = 0.98, max_treedepth = 15),
+    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
     family = negbinomial())
-  saveRDS(fitnb_full,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_full.rds"))
+  saveRDS(fitnb_full_c,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_full_c.rds"))
+  
+  fitnb_full_s <- brm(
+    n_juv ~ n_adu_log_s + mean_sett_log_s + R_log10_s + Ds + (1|year) + (1 | site),
+    data = dt,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+    family = negbinomial())
+  saveRDS(fitnb_full_s,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_full_s.rds"))
+  
+  fitzinb_full_c <- brm(
+    n_juv ~ n_adu_log_c + mean_sett_log_c + R_log10_c + Dc + (1|year) + (1 | site),
+    data = dt,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+    family = negbinomial())
+  saveRDS(fitzinb_full_c,paste0("output/models/brm_zinb_",str_sub(path, 8, 10),"_full_c.rds"))
+  
+  fitzinb_full_s <- brm(
+    n_juv ~ n_adu_log_s + mean_sett_log_s + R_log10_s + Ds + (1|year) + (1 | site),
+    data = dt,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+    family = negbinomial())
+  saveRDS(fitzinb_full_s,paste0("output/models/brm_zinb_",str_sub(path, 8, 10),"_full_s.rds"))
+  
+  
+  fitnb_full_c23 <- brm(
+    n_juv ~ n_adu_log_c + mean_sett_log_c + R_log10_c + Dc + (1 | site),
+    data = dt23,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+    family = negbinomial())
+  saveRDS(fitnb_full_c23,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_full_c23.rds"))
+  
+  fitnb_full_s23 <- brm(
+    n_juv ~ n_adu_log_s + mean_sett_log_s + R_log10_s + Ds + (1 | site),
+    data = dt23,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+    family = negbinomial())
+  saveRDS(fitnb_full_s23,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_full_s23.rds"))
+  
+  
+  fitnb_full_c19 <- brm(
+    n_juv ~ n_adu_log_c + mean_sett_log_c + R_log10_c + Dc + (1 | site),
+    data = dt19,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+    family = negbinomial())
+  saveRDS(fitnb_full_c19,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_full_c19.rds"))
+  
+  fitnb_full_s19 <- brm(
+    n_juv ~ n_adu_log_s + mean_sett_log_s + R_log10_s + Ds + (1 | site),
+    data = dt19,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+    family = negbinomial())
+  saveRDS(fitnb_full_s19,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_full_s19.rds"))
+  
+  
+}
+  
   
   fitnb_full_noyear <- brm(
     n_juv ~ n_adu_log_c + mean_sett_log_c + R_log10_c + Dc + (1 | site),
@@ -196,6 +274,22 @@ for (path in paths) {
     family = negbinomial())
   saveRDS(fitnb_DR_int,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_DR_int.rds"))
 
+  fitnb_full_fixedY <- brm(
+    n_juv ~ n_adu_log_c + mean_sett_log_c + R_log10_c + Dc + year + (1 | site),
+    data = dt,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    family = negbinomial())
+  saveRDS(fitnb_fixedY,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_fixedY.rds"))
+  
+  fitnb_full_zinb <- brm(
+    n_juv ~ n_adu_log_c + mean_sett_log_c + R_log10_c + Dc + (1|year) + (1 | site),
+    data = dt,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    family = zero_inflated_negbinomial())
+  saveRDS(fitnb_fixedY,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_fixedY.rds"))
+  
   fitnb_a <- brm(
     n_juv ~ n_adu_log_c + (1|year) + (1 | site),
     data = dt,
@@ -229,6 +323,72 @@ for (path in paths) {
   saveRDS(fitnb_D,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_D.rds"))
   
   }
+
+# fit with priors and year as fixed effect
+
+dt <- read.csv("output/dt50.csv")
+dt$site <- as.factor(dt$site)
+dt$year <- as.factor(dt$year)
+dt$n_adu_log_c     <- scale(dt$n_adu_log, scale = FALSE)
+dt$mean_sett_log_c <- scale(dt$mean_sett_log, scale = FALSE)
+dt$R_log10_c       <- scale(dt$R_log10, scale = FALSE)
+dt$Dc            <- scale(dt$D, scale = FALSE)
+
+fit50 <- brm(
+  n_juv ~ year + n_adu_log_c + mean_sett_log_c + R_log10_c + Dc + (1|site),
+  data = dt,
+  family = negbinomial(),
+  prior = c(
+    prior(normal(-0.4, 0.8), class = "Intercept"),
+    prior(normal(0, 0.7), class = "b"),
+    prior(normal(0, 1), class = "b", coef = "year2023"),
+    prior(exponential(2), class = "sd", group = "site"))
+)
+
+fit50_1 <- brm(
+  n_juv ~ n_adu_log_c + mean_sett_log_c + R_log10_c + Dc + (1|year) + (1|site),
+  data = dt,
+  family = negbinomial(),
+  prior = c(
+    prior(normal(0.5,1), class="Intercept"),
+    prior(normal(0,0.7), class="b"),
+    prior(exponential(5), class="sd", group="year"),
+    prior(exponential(2), class="sd", group="site")
+  )
+)
+
+
+dt <- read.csv("output/dt1.csv")
+dt$site <- as.factor(dt$site)
+dt$year <- as.factor(dt$year)
+dt$n_adu_log_c     <- scale(dt$n_adu_log, scale = FALSE)
+dt$mean_sett_log_c <- scale(dt$mean_sett_log, scale = FALSE)
+dt$R_log10_c       <- scale(dt$R_log10, scale = FALSE)
+dt$Dc            <- scale(dt$D, scale = FALSE)
+
+fit1 <- brm(
+  n_juv ~ year + n_adu_log_c + mean_sett_log_c + R_log10_c + Dc + (1|site),
+  data = dt,
+  family = negbinomial(),
+  prior = c(
+    prior(normal(1.9, 1), class = "Intercept"),
+    prior(normal(0, 0.7), class = "b"),
+    prior(normal(0, 1), class = "b", coef = "year2023"),
+    prior(exponential(1.5), class = "sd", group = "site")
+  )
+)
+
+fit1_1 <- brm(
+  n_juv ~ n_adu_log_c + mean_sett_log_c + R_log10_c + Dc + (1|year) + (1|site),
+  data = dt,
+  family = negbinomial(),
+  prior = c(
+    prior(normal(1.9, 1), class = "Intercept"),
+    prior(normal(0, 0.7), class = "b"),
+    prior(exponential(3), class = "sd", group = "year"),
+    prior(exponential(1.5), class = "sd", group = "site")
+  )
+)
 
 
   ggsave(
@@ -277,7 +437,6 @@ for (path in paths) {
   # )
 
 
-}
 
 
 
