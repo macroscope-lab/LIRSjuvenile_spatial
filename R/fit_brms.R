@@ -15,6 +15,9 @@ paths <- c("output/dt1.csv", "output/dt50.csv", "output/dt2.csv",
            "output/dt4.csv")
 
 
+paths <- c("output/dt1.csv", "output/dt2.csv",
+           "output/dt4.csv")
+
 ## functions for plots #####
 
 coef_plot <- function(fit) {
@@ -200,8 +203,356 @@ for (path in paths) {
   
   
 }
+
+
+
+for (path in paths) {
+  dt <- read.csv(path)
+  dt$site <- as.factor(dt$site)
+  dt$year <- as.factor(dt$year)
+  dt$n_adu_log_c     <- scale(dt$n_adu_log, scale = FALSE)
+  dt$mean_sett_log_c <- scale(dt$mean_sett_log, scale = FALSE)
+  dt$R_log10_c       <- scale(dt$R_log10, scale = FALSE)
+  dt$Dc            <- scale(dt$D, scale = FALSE)
+  
+  fitnb_full_c_int <- brm(
+    n_juv ~ year*(n_adu_log_c + mean_sett_log_c + R_log10_c + Dc) + (1 | site),
+    data = dt,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.99, max_treedepth = 15),
+    chains = 4, cores = 2, threads = threading(1), backend = "cmdstanr",
+    family = negbinomial())
+  saveRDS(fitnb_full_c_int,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_full_c_int.rds"))
+  
+  fitnb_full_c_halfint <- brm(
+    n_juv ~ n_adu_log_c + year*mean_sett_log_c + R_log10_c + Dc + (1 | site),
+    data = dt,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.99, max_treedepth = 15),
+    chains = 4, cores = 2, threads = threading(1), backend = "cmdstanr",
+    family = negbinomial())
+  saveRDS(fitnb_full_c_halfint,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_full_c_halfint.rds"))
+  
+
+  
+}
+  
+
+## keep centered and fix not converging ones
+nb50_full <- readRDS("output/models/brm_nb_dt5_full_c.rds")
+nb1_full <- readRDS("output/models/brm_nb_dt1_full_c.rds")
+nb2_full <- readRDS("output/models/brm_nb_dt2_full_c.rds")
+nb4_full <- readRDS("output/models/brm_nb_dt4_full_c.rds")
+
+nb50_19 <- readRDS("output/models/brm_nb_dt5_full_c19.rds")
+nb1_19 <- readRDS("output/models/brm_nb_dt1_full_c19.rds")
+nb2_19 <- readRDS("output/models/brm_nb_dt2_full_c19.rds")
+nb4_19 <- readRDS("output/models/brm_nb_dt4_full_c19.rds")
+
+nb50_23 <- readRDS("output/models/brm_nb_dt5_full_c23.rds")
+nb1_23 <- readRDS("output/models/brm_nb_dt1_full_c23.rds")
+nb2_23 <- readRDS("output/models/brm_nb_dt2_full_c23.rds")
+nb4_23 <- readRDS("output/models/brm_nb_dt4_full_c23.rds")
+
+mod1_int <- readRDS("output/models/brm_nb_dt1_full_c_int.rds")
+mod1_hint <- readRDS("output/models/brm_nb_dt1_full_c_halfint.rds")
+mod2_int <- readRDS("output/models/brm_nb_dt2_full_c_int.rds")
+mod2_hint <- readRDS("output/models/brm_nb_dt2_full_c_halfint.rds")
+mod4_int <- readRDS("output/models/brm_nb_dt4_full_c_int.rds")
+mod4_hint <- readRDS("output/models/brm_nb_dt4_full_c_halfint.rds")
+
+
+loo(nb1_full, mod1_int, mod1_hint)
+summary(mod2_int)
+
+#nb50_full
+#plot(nb50_full)
+#pp_check(nb50_full)
+
+#fix nb50_19
+
+dt <- read.csv("output/dt50.csv")
+dt$site <- as.factor(dt$site)
+dt$year <- as.factor(dt$year)
+dt$n_adu_log_c     <- scale(dt$n_adu_log, scale = FALSE)
+dt$mean_sett_log_c <- scale(dt$mean_sett_log, scale = FALSE)
+dt$R_log10_c       <- scale(dt$R_log10, scale = FALSE)
+dt$Dc            <- scale(dt$D, scale = FALSE)
+dt50_19 <- dt[dt$year == 2019,]
+
+fitnb50_19_c <- brm(
+  n_juv ~ n_adu_log_c + mean_sett_log_c + R_log10_c + Dc + (1|year) + (1 | site),
+  data = dt50_19,
+  iter = 12000, warmup = 4000, thin = 5,
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+  family = negbinomial())
+saveRDS(fitnb50_19_c,"output/models/brm_nb_dt5_full_c19.rds")
+
+plot(fitnb50_19_c)
+pp_check(fitnb50_19_c)
+
+nb50_19 <- fitnb50_19_c
+
+#fix nb1_full
+
+dt <- read.csv("output/dt1.csv")
+dt$site <- as.factor(dt$site)
+dt$year <- as.factor(dt$year)
+dt$n_adu_log_c     <- scale(dt$n_adu_log, scale = FALSE)
+dt$mean_sett_log_c <- scale(dt$mean_sett_log, scale = FALSE)
+dt$R_log10_c       <- scale(dt$R_log10, scale = FALSE)
+dt$Dc            <- scale(dt$D, scale = FALSE)
+dt1_full <- dt
+
+fitnb1_full_c <- brm(
+  n_juv ~ n_adu_log_c + mean_sett_log_c + R_log10_c + Dc + (1|year) + (1 | site),
+  data = dt1_full,
+  iter = 12000, warmup = 4000, thin = 5,
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+  family = negbinomial())
+
+plot(fitnb1_full_c )
+pp_check(fitnb1_full_c )
+
+saveRDS(fitnb1_full_c,"output/models/brm_nb_dt1_full_c.rds")
+
+nb1_full <- fitnb1_full_c
+
+#fix nb4_23
+
+dt <- read.csv("output/dt4.csv")
+dt$site <- as.factor(dt$site)
+dt$year <- as.factor(dt$year)
+dt$n_adu_log_c     <- scale(dt$n_adu_log, scale = FALSE)
+dt$mean_sett_log_c <- scale(dt$mean_sett_log, scale = FALSE)
+dt$R_log10_c       <- scale(dt$R_log10, scale = FALSE)
+dt$Dc            <- scale(dt$D, scale = FALSE)
+dt4_23 <- dt[dt$year==2023,]
+
+fitnb4_23_c <- brm(
+  n_juv ~ n_adu_log_c + mean_sett_log_c + R_log10_c + Dc + (1|year) + (1 | site),
+  data = dt4_23,
+  iter = 12000, warmup = 4000, thin = 5,
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+  family = negbinomial())
+
+plot(fitnb4_23_c )
+pp_check(fitnb4_23_c )
+
+saveRDS(fitnb1_full_c,"output/models/brm_nb_dt1_full_c.rds")
+
+nb4_23 <- fitnb4_23_c
+
+## fit one variable only 
+
+for (path in paths) {
+  dt <- read.csv(path)
+  dt$site <- as.factor(dt$site)
+  dt$year <- as.factor(dt$year)
+  dt$n_adu_log_c     <- scale(dt$n_adu_log, scale = FALSE)
+  dt$mean_sett_log_c <- scale(dt$mean_sett_log, scale = FALSE)
+  dt$R_log10_c       <- scale(dt$R_log10, scale = FALSE)
+  dt$Dc            <- scale(dt$D, scale = FALSE)
+  dt23 <- dt[dt$year == 2023,]
+  dt19 <- dt[dt$year == 2019,]
+  
+  fitnb_a <- brm(
+    n_juv ~ n_adu_log_c + (1|year) + (1 | site),
+    data = dt,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+    family = negbinomial())
+  saveRDS(fitnb_a,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_a_c.rds"))
+
+  fitnb_s <- brm(
+    n_juv ~ mean_sett_log_c + (1|year) + (1 | site),
+    data = dt,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+    family = negbinomial())
+  saveRDS(fitnb_s,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_s_c.rds"))
+
+  fitnb_r <- brm(
+    n_juv ~ R_log10_c + (1|year) + (1 | site),
+    data = dt,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+    family = negbinomial())
+  saveRDS(fitnb_r,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_R_c.rds"))
+
+
+  fitnb_a19 <- brm(
+    n_juv ~ n_adu_log_c + (1 | site),
+    data = dt19,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+    family = negbinomial())
+  saveRDS(fitnb_a19,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_a_c19.rds"))
+  
+  fitnb_s19 <- brm(
+    n_juv ~ mean_sett_log_c + (1 | site),
+    data = dt19,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+    family = negbinomial())
+  saveRDS(fitnb_s19,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_s_c19.rds"))
+  
+  fitnb_r19 <- brm(
+    n_juv ~ R_log10_c + (1 | site),
+    data = dt19,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+    family = negbinomial())
+  saveRDS(fitnb_r19,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_R_c19.rds"))
+  
+  fitnb_d19 <- brm(
+    n_juv ~ Dc + (1 | site),
+    data = dt19,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+    family = negbinomial())
+  saveRDS(fitnb_d19,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_D_c19.rds"))
+  
+  fitnb_null19 <- brm(
+    n_juv ~ (1 | site),
+    data = dt19,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+    family = negbinomial())
+  saveRDS(fitnb_null19,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_null_c19.rds"))
+  
+  fitnb_a23 <- brm(
+    n_juv ~ n_adu_log_c + (1 | site),
+    data = dt23,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+    family = negbinomial())
+  saveRDS(fitnb_a23,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_a_c23.rds"))
+  
+  fitnb_s23 <- brm(
+    n_juv ~ mean_sett_log_c + (1 | site),
+    data = dt23,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+    family = negbinomial())
+  saveRDS(fitnb_s23,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_s_c23.rds"))
+  
+  fitnb_r23 <- brm(
+    n_juv ~ R_log10_c + (1 | site),
+    data = dt23,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+    family = negbinomial())
+  saveRDS(fitnb_r23,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_R_c23.rds"))
+  
+  fitnb_d23 <- brm(
+    n_juv ~ Dc + (1 | site),
+    data = dt23,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+    family = negbinomial())
+  saveRDS(fitnb_d23,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_D_c23.rds"))
+  
+  fitnb_null23 <- brm(
+    n_juv ~ (1 | site),
+    data = dt23,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+    family = negbinomial())
+  saveRDS(fitnb_null23,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_null_c23.rds"))
+  fitnb_d <- brm(
+    n_juv ~ Dc + (1|year) + (1 | site),
+    data = dt,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+    family = negbinomial())
+  saveRDS(fitnb_d,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_D_c.rds"))
+  
+  fitnb_null <- brm(
+    n_juv ~ (1|year) + (1 | site),
+    data = dt,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.98, max_treedepth = 15),
+    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+    family = negbinomial())
+  saveRDS(fitnb_null,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_null_c.rds"))
   
   
+  }
+
+
+
+#fix nb50_D
+
+dt <- read.csv("output/dt50.csv")
+dt$site <- as.factor(dt$site)
+dt$year <- as.factor(dt$year)
+dt$n_adu_log_c     <- scale(dt$n_adu_log, scale = FALSE)
+dt$mean_sett_log_c <- scale(dt$mean_sett_log, scale = FALSE)
+dt$R_log10_c       <- scale(dt$R_log10, scale = FALSE)
+dt$Dc            <- scale(dt$D, scale = FALSE)
+
+fitnb50_D_c <- brm(
+  n_juv ~ Dc + (1|year) + (1 | site),
+  data = dt,
+  iter = 12000, warmup = 4000, thin = 5,
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+  family = negbinomial())
+saveRDS(fitnb50_D_c,"output/models/brm_nb_dt5_D_c.rds")
+
+plot(fitnb50_D_c)
+pp_check(fitnb50_D_c)
+
+
+#fix nb50_R
+
+dt <- read.csv("output/dt50.csv")
+dt$site <- as.factor(dt$site)
+dt$year <- as.factor(dt$year)
+dt$n_adu_log_c     <- scale(dt$n_adu_log, scale = FALSE)
+dt$mean_sett_log_c <- scale(dt$mean_sett_log, scale = FALSE)
+dt$R_log10_c       <- scale(dt$R_log10, scale = FALSE)
+dt$Dc            <- scale(dt$D, scale = FALSE)
+
+fitnb50_R_c <- brm(
+  n_juv ~ R_log10 + (1|year) + (1 | site),
+  data = dt,
+  iter = 12000, warmup = 4000, thin = 5,
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+  family = negbinomial())
+saveRDS(fitnb50_R_c,"output/models/brm_nb_dt5_R_c.rds")
+
+plot(fitnb50_R_c)
+pp_check(fitnb50_R_c)
+
+
+
+
+
+
+
+
+
+
   fitnb_full_noyear <- brm(
     n_juv ~ n_adu_log_c + mean_sett_log_c + R_log10_c + Dc + (1 | site),
     data = dt,
@@ -323,6 +674,16 @@ for (path in paths) {
   saveRDS(fitnb_D,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_D.rds"))
   
   }
+
+nb50_full <- readRDS("output/models/brm_nb_dt5_full_c.rds")
+nb1_full <- readRDS("output/models/brm_nb_dt1_full_c.rds")
+nb2_full <- readRDS("output/models/brm_nb_dt2_full_c.rds")
+nb4_full <- readRDS("output/models/brm_nb_dt4_full_c.rds")
+
+nb50_full <- readRDS("output/models/brm_nb_dt5_full_c.rds")
+nb1_full <- readRDS("output/models/brm_nb_dt1_full_c.rds")
+nb2_full <- readRDS("output/models/brm_nb_dt2_full_c.rds")
+nb4_full <- readRDS("output/models/brm_nb_dt4_full_c.rds")
 
 # fit with priors and year as fixed effect
 
@@ -586,194 +947,6 @@ fithnb <- brm(n_juv ~ n_adu + mean_sett + R + D +
 loo(fitnb,fitznb_nat)
 plot(conditional_effects(fitznb_nat, effects = "n_adu"))
 plot(conditional_effects(fitznb, effects = "n_adu_log"))
-
-
-
-
-
-
-
-
-fitnb <- brm(n_juv ~ n_adu + mean_sett + R + D +
-               (1 | site),
-             data = dt1,
-             family = negbinomial())
-
-
-
-
-###2022 2x2m ####
-
-
-fitnb <- brm(n_juv ~ n_adu + mean_sett + R + D +
-               (1 | site),
-             data = dt2,
-             family = negbinomial())
-
-
-
-ranef_vals <- ranef(fitnb)$site[, , "Intercept"]
-site_re_df <- as.data.frame(ranef_vals)
-site_re_df$site <- rownames(ranef_vals)
-site_re_df <- site_re_df[, c("site", "Estimate", "Q2.5", "Q97.5")]
-
-ggplot(site_re_df, aes(x = reorder(site, Estimate), y = Estimate)) +
-  geom_point() +
-  geom_pointrange(aes(ymin = Q2.5, ymax = Q97.5), linewidth = 1) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  coord_flip() +
-  labs(x = "Site", y = "Random Intercept Estimate",
-       title = "Site Random Effects") +
-  theme_minimal()
-
-
-fixef_df <- as.data.frame(fixef(fitnb))[2:5,]
-fixef_df$term <- rownames(fixef_df)
-fixef_df <- fixef_df[, c("term", "Estimate", "Q2.5", "Q97.5")]
-
-ggplot(fixef_df, aes(x = reorder(term, Estimate), y = Estimate)) +
-  geom_point() +
-  geom_pointrange(aes(ymin = Q2.5, ymax = Q97.5), linewidth = 1) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  coord_flip() +
-  labs(x = "Fixed Effect", y = "Estimate",
-       title = "Fixed Effects (Posterior Means & 95% CI)") +
-  theme_minimal()
-
-
-###2022 4x4m ####
-
-
-fitnb <- brm(n_juv ~ n_adu + mean_sett + R + D +
-               (1 | site),
-             data = dt4,
-             family = negbinomial())
-
-
-
-ranef_vals <- ranef(fitnb)$site[, , "Intercept"]
-site_re_df <- as.data.frame(ranef_vals)
-site_re_df$site <- rownames(ranef_vals)
-site_re_df <- site_re_df[, c("site", "Estimate", "Q2.5", "Q97.5")]
-
-ggplot(site_re_df, aes(x = reorder(site, Estimate), y = Estimate)) +
-  geom_point() +
-  geom_pointrange(aes(ymin = Q2.5, ymax = Q97.5), linewidth = 1) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  coord_flip() +
-  labs(x = "Site", y = "Random Intercept Estimate",
-       title = "Site Random Effects") +
-  theme_minimal()
-
-
-fixef_df <- as.data.frame(fixef(fitnb))[2:5,]
-fixef_df$term <- rownames(fixef_df)
-fixef_df <- fixef_df[, c("term", "Estimate", "Q2.5", "Q97.5")]
-
-ggplot(fixef_df, aes(x = reorder(term, Estimate), y = Estimate)) +
-  geom_point() +
-  geom_pointrange(aes(ymin = Q2.5, ymax = Q97.5), linewidth = 1) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  coord_flip() +
-  labs(x = "Fixed Effect", y = "Estimate",
-       title = "Fixed Effects (Posterior Means & 95% CI)") +
-  theme_minimal()
-
-
-### 2019 1x1m ####
-dt1 <- read.csv("data/dt1_2019.csv")
-dt1$site <- as.factor(dt1$site)
-dt1$year <- as.factor("2019")
-
-fitnb <- brm(n_juv ~ n_adu + mean_sett + R + D +
-               (1 | site),
-             data = dt1,
-             family = negbinomial())
-
-
-
-ranef_vals <- ranef(fitnb)$site[, , "Intercept"]
-site_re_df <- as.data.frame(ranef_vals)
-site_re_df$site <- rownames(ranef_vals)
-site_re_df <- site_re_df[, c("site", "Estimate", "Q2.5", "Q97.5")]
-
-ggplot(site_re_df, aes(x = reorder(site, Estimate), y = Estimate)) +
-  geom_point() +
-  geom_pointrange(aes(ymin = Q2.5, ymax = Q97.5), linewidth = 1) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  coord_flip() +
-  labs(x = "Site", y = "Random Intercept Estimate",
-       title = "Site Random Effects") +
-  theme_minimal()
-
-
-fixef_df <- as.data.frame(fixef(fitnb))[2:5,]
-fixef_df$term <- rownames(fixef_df)
-fixef_df <- fixef_df[, c("term", "Estimate", "Q2.5", "Q97.5")]
-
-ggplot(fixef_df, aes(x = reorder(term, Estimate), y = Estimate)) +
-  geom_point() +
-  geom_pointrange(aes(ymin = Q2.5, ymax = Q97.5), linewidth = 1) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  coord_flip() +
-  labs(x = "Fixed Effect", y = "Estimate",
-       title = "Fixed Effects (Posterior Means & 95% CI)") +
-  theme_minimal()
-
-
-
-
-### 2019 2x2m ####
-dt2 <- read.csv("data/dt2_2019.csv")
-dt2$site <- as.factor(dt2$site)
-dt2$year <- as.factor("2019")
-
-fitnb <- brm(n_juv ~ n_adu + mean_sett + R + D +
-               (1 | site),
-             data = dt2,
-             family = negbinomial())
-
-
-
-ranef_vals <- ranef(fitnb)$site[, , "Intercept"]
-site_re_df <- as.data.frame(ranef_vals)
-site_re_df$site <- rownames(ranef_vals)
-site_re_df <- site_re_df[, c("site", "Estimate", "Q2.5", "Q97.5")]
-
-ggplot(site_re_df, aes(x = reorder(site, Estimate), y = Estimate)) +
-  geom_point() +
-  geom_pointrange(aes(ymin = Q2.5, ymax = Q97.5), linewidth = 1) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  coord_flip() +
-  labs(x = "Site", y = "Random Intercept Estimate",
-       title = "Site Random Effects") +
-  theme_minimal()
-
-
-fixef_df <- as.data.frame(fixef(fitnb))[2:5,]
-fixef_df$term <- rownames(fixef_df)
-fixef_df <- fixef_df[, c("term", "Estimate", "Q2.5", "Q97.5")]
-
-ggplot(fixef_df, aes(x = reorder(term, Estimate), y = Estimate)) +
-  geom_point() +
-  geom_pointrange(aes(ymin = Q2.5, ymax = Q97.5), linewidth = 1) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  coord_flip() +
-  labs(x = "Fixed Effect", y = "Estimate",
-       title = "Fixed Effects (Posterior Means & 95% CI)") +
-  theme_minimal()
-
-
-###2019 4x4m ####
-dt4 <- read.csv("data/dt4_2019.csv")
-dt4$site <- as.factor(dt4$site)
-dt4$year <- as.factor("2019")
-
-fitnb <- brm(n_juv ~ n_adu + mean_sett + R + D +
-               (1 | site),
-             data = dt4,
-             family = negbinomial())
-
 
 
 ranef_vals <- ranef(fitnb)$site[, , "Intercept"]

@@ -1,15 +1,16 @@
 #### preliminary analysis ####
-library(mgcv)
 library(RColorBrewer)
 library(tidyverse)
 library(ggplot2)
-library(rgdal)
-library(sp)
 library(sf)
-library(sjPlot)
-library(sgeostat)
+library(terra)
 
 ## read tables 
+paths <- c("output/dt1.csv", "output/dt50.csv", "output/dt2.csv",
+           "output/dt4.csv")
+path <- paths[1]
+dt <- read.csv(path)
+S<- as.numeric(substr(path,10,10))
 
 tab05 <- read.csv("data_tables/tab05_all.csv", head = TRUE)
 tab1 <- read.csv("data_tables/tab1_all.csv", head = TRUE)
@@ -38,13 +39,13 @@ plot(data = tab1, D~R)
 plot(data = tab2, D~R)
 
 ## N3 map example
-N3 <- raster("data_raw/records/N319.tif")
-N3 <- projectRaster(N3,
-                    crs = "+proj=tmerc +lat_0=-14.6989736557007 +lon_0=145.448257446289 +k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs")
-
-ann <- readOGR("data_raw/annotations/Export_Output_all.shp")
+N3 <- rast("data_raw/rr2019/records/N319.tif")
+ann <- st_read("data_raw/rr2019/annotations/Export_Output_all.shp")
+ann <- ann %>% filter (Site == "north_reef_3" & Year == 2019)
 ann_old <- subset(ann, ann$Status == "alive")
 ann_new <- subset(ann, ann$Status == "new")
+
+N3 <- project(N3, crs(ann))
 
 # DEM palette
 ncols <- 100
@@ -52,55 +53,70 @@ newcol <- colorRampPalette(c("#8C510A", "#BF812D",
                              "#DFC27D", "#F6E8C3", "#C7EAE5", "#80CDC1", "#35978F", "#01665E"))
 cols <- newcol(ncols)  #apply the function to get 100 colours
 
-Ccoord2 <- tab2[,c("xC", "yC")]
-c2 <- SpatialPoints(Ccoord2)
-Ccoord1 <- tab1[,c("xC", "yC")]
-c1 <- SpatialPoints(Ccoord1)
-Ccoord2 <- tab2[,c("xC", "yC")]
-c2 <- SpatialPoints(Ccoord2)
-
-#### grid parameters
-g2 <- list()
-for(i in seq_along(c2)) {
-  g2[i] <- gBuffer(c2[i], width=1, quadsegs=1, capStyle="SQUARE")
-}
-G2 <- do.call(bind, g2)
-crs(G2) <- crs(ann)
-
-g1 <- list()
-for(i in seq_along(c1)) {
-  g1[i] <- gBuffer(c1[i], width=0.5, quadsegs=1, capStyle="SQUARE")
-}
-G1 <- do.call(bind, g1)
-crs(G1) <- crs(ann)
-
-g2 <- list()
-for(i in seq_along(c2)) {
-  g2[i] <- gBuffer(c2[i], width=0.25, quadsegs=1, capStyle="SQUARE")
-}
-G2 <- do.call(bind, g2)
-crs(G2) <- crs(ann)
+dt <- dt %>% filter (site == "N3" & year == 2019)
+c <- st_as_sf(dt[,c("site","rep", "xc", "yc")],
+coords = c("xc", "yc"))
+st_crs(c) <-   32755
+squares <- st_buffer(c, dist = S/2, endCapStyle = "SQUARE") %>%
+st_cast("POLYGON")
+squares <- st_transform(squares, st_crs(ann))
 
 ### get N3 center ###
-n3 <- data.frame(lon = 615.239532, lat = 5865.968985)
-center <- st_as_sf(x = n3, 
-                   coords = c("lon", "lat"),
-                   crs = crs(N3))
-center_sp<- as(center, "Spatial")
-N3c <- gBuffer(center_sp, width=7.3)
-circle_raster <- mask(N3, N3c)
+n3 <- data.frame(lon = 610.7133+ (618.7684-610.7133)/2, lat = 5862.464 + (5870.519 - 5862.464)/2)
+center <- vect(x = n3)
 
-png("figs/CountMap2.png", width = 16, height = 14, unit = 'cm', res = 300)
-plot(circle_raster, asp=1, col=cols, axes=FALSE, box=FALSE)
-plot(ann_adults, add = TRUE, col = "black", pch = 21, asp=1, cex = .6)
-plot(ann_new, add = TRUE, bg = "white", pch = 21, asp=1, cex = .6)
-plot(G2, border = "darkred",add = TRUE, asp=1)
-axis(1, at=seq(n3$lon-4, n3$lon+4, 2), labels=seq(0, 8, 2))
-axis(1, at=seq(n3$lon-4, n3$lon+4, 0.5), labels=NA)
-axis(2, at=seq(n3$lat-4, n3$lat+4, 2), labels=seq(0, 8, 2))
-axis(2, at=seq(n3$lat-4, n3$lat+4, 0.5), labels=NA)
-text(labels="a", cb$lon-7.5,cb$lat+7.5, adj=0, font = 2, cex = 1.5)
+circle <- buffer(center, width = 6.5)
+N3_circle <- crop(N3, circle)
+N3_circle <- mask(N3_circle, circle)
+
+png("figures/CountMap.png", width = 18, height = 18, unit = 'cm', res = 300)
+par(mar = c(6, 6, 2, 5), mgp = c(3.5, 1.5, 0))
+
+plot(N3_circle, asp=1, col=cols, axes=FALSE, box=FALSE, 
+     plg = list(title = "depth (m)", size = 0.3))
+
+points(ann_old, add = TRUE, col = "black", bg = "white", pch = 21, asp=1, cex = .8)
+points(ann_new, col = "black", pch = 16, asp=1, cex = 1)
+plot(st_geometry(squares), add = TRUE,cex = 1.2)
+
+axis(1, at=seq(n3$lon-4, n3$lon+4, 2), labels=seq(0, 8, 2), line = 3)
+axis(1, at=seq(n3$lon-4, n3$lon+4, 0.5), labels=NA, line = 3)
+axis(2, at=seq(n3$lat-4, n3$lat+4, 2), labels=seq(0, 8, 2), line = 4)
+axis(2, at=seq(n3$lat-4, n3$lat+4, 0.5), labels=NA, line = 4)
+text(labels="a", n3$lon-7,n3$lat+7, adj=0, font = 2, cex = 1.5)
 dev.off()
+
+
+r_df <- as.data.frame(
+  N3_circle,
+  xy = TRUE,
+  na.rm = TRUE
+)
+names(r_df)[3] <- "value"
+
+
+p <- ggplot() +
+  geom_raster(data = r_df, aes(x = x, y = y, fill = value)) +
+  geom_sf(data = squares, fill = NA,color = "black",linewidth = 0.3,alpha = 0.7)+
+  scale_fill_gradientn(colours = cols, name = "depth")+
+  geom_sf(data = ann_old,shape = 16,color = "black",size = 1.2) +
+  geom_sf(data = ann_new,shape = 21,fill = "white",color = "black",stroke = 0.3,size = 1.2)+
+  coord_sf(expand = FALSE) +
+  # publication theme
+  theme_classic(base_size = 12) +
+  theme(
+    axis.title = element_blank(),
+    axis.text = element_text(color = "black",size = 11),
+    axis.ticks.length = unit(0.15, "cm"),
+    legend.position = "right",
+    legend.title = element_text(size = 11),
+    legend.text  = element_text(size = 10),
+    panel.border = element_blank(),
+    plot.margin = margin(5, 5, 5, 5)
+  )
+
+p
+
 ##### vioplots for news and olds ####
 source("https://gist.githubusercontent.com/benmarwick/2a1bb0133ff568cbe28d/raw/fb53bd97121f7f9ce947837ef1a4c65a73bffb3f/geom_flat_violin.R")
 
