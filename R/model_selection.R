@@ -128,8 +128,22 @@ model1_files <- c("output/models/brm_nb_dt1_full_c.rds","output/models/brm_nb_dt
 model2_files <- c("output/models/brm_nb_dt2_full_c.rds","output/models/brm_nb_dt2_R_c.rds", "output/models/brm_nb_dt2_D_c.rds", "output/models/brm_nb_dt2_a_c.rds", "output/models/brm_nb_dt2_s_c.rds")
 model4_files <- c("output/models/brm_nb_dt4_full_c.rds","output/models/brm_nb_dt4_R_c.rds", "output/models/brm_nb_dt4_D_c.rds", "output/models/brm_nb_dt4_a_c.rds", "output/models/brm_nb_dt4_s_c.rds")
 
+model5_files <- c("output/models/brm_nb_dt5_full_c_aint.rds","output/models/brm_nb_dt5_full_c_int.rds", "output/models/brm_nb_dt5_full_c.rds")
+model1_files <- c("output/models/brm_nb_dt1_full_c_aint.rds","output/models/brm_nb_dt1_full_c_int.rds", "output/models/brm_nb_dt1_full_c.rds")
+model2_files <- c("output/models/brm_nb_dt2_full_c_aint.rds","output/models/brm_nb_dt2_full_c_int.rds", "output/models/brm_nb_dt2_full_c.rds")
+model4_files <- c("output/models/brm_nb_dt4_full_c_aint.rds","output/models/brm_nb_dt4_full_c_int.rds", "output/models/brm_nb_dt4_full_c.rds")
+
+
 model_files <- c(model1_files, model2_files, model4_files)
 
+
+model_files <- c("output/models/brm_nb_dt5_full_c_aint_ry.rds", "output/models/brm_nb_dt5_full_c_aint.rds",
+                 "output/models/brm_nb_dt1_full_c_aint_ry.rds", "output/models/brm_nb_dt1_full_c_aint.rds",
+                 "output/models/brm_nb_dt2_full_c_aint_ry.rds", "output/models/brm_nb_dt2_full_c_aint.rds",
+                 "output/models/brm_nb_dt4_full_c_aint_ry.rds","output/models/brm_nb_dt4_full_c_aint.rds" )
+                 "output/models/brm_nb_dt1_full_c.rds", "output/models/brm_nb_dt1_full_c_int.rds",
+                 "output/models/brm_nb_dt2_full_c.rds", "output/models/brm_nb_dt2_full_c_int.rds",
+                 "output/models/brm_nb_dt4_full_c.rds", "output/models/brm_nb_dt4_full_c_int.rds")
 results <- map(model_files, extract_model_info)
 
 loo_table <- map_dfr(results, "loo")
@@ -146,7 +160,7 @@ model_summary
 effects_table
 
 # save
-#write_csv(model_summary, "output/dt1_cVSs_split_model_comparison_summary.csv")
+# write_csv(model_summary, "output/intVSrandomVBadu_model_comparison_summary.csv")
 #write_csv(effects_table, "output/dt1_cVSs_split_model_effects_summary.csv")
 
 effects_clean <- effects_table %>%
@@ -236,32 +250,59 @@ plot_effects <- function(df, effect_type) {
 
 models <- unique(effects_clean$model)
 
+title_df <- tibble::tribble(
+  ~model, ~title,
+  "brm_nb_dt5_full_c", "50x50cm scale, year as random effect",
+  "brm_nb_dt5_full_c_int", "50x50cm scale, year as interacting effect",
+  "brm_nb_dt5_full_c_aint", "50x50cm scale, adu abundance as interacting effect",
+  "brm_nb_dt5_full_c_aint_ry", "50x50cm scale, adu abu interaction, year random",
+  "brm_nb_dt1_full_c", "1x1m scale, year as random effect",
+  "brm_nb_dt1_full_c_int", "1x1m scale, year as interacting effect",
+  "brm_nb_dt1_full_c_aint", "1x1m scale, adu abundance as interacting effect",
+  "brm_nb_dt1_full_c_aint_ry", "1x1m scale, adu abu interaction, year random",
+  "brm_nb_dt2_full_c", "2x2m scale, year as random effect",
+  "brm_nb_dt2_full_c_int", "2x2m scale, year as interacting effect",
+  "brm_nb_dt2_full_c_aint", "2x2m scale, adu abundance as interacting effect",
+  "brm_nb_dt2_full_c_aint_ry", "2x2m scale, adu abu interaction, year random",
+  "brm_nb_dt4_full_c", "4x4m scale, year as random effect",
+  "brm_nb_dt4_full_c_int", "4x4m scale, year as interacting effect",
+  "brm_nb_dt4_full_c_aint", "4x4m scale, adu abundance as interacting effect",
+  "brm_nb_dt4_full_c_aint_ry", "4x4m scale, adu abu interaction, year random"
+)
+
 plot_rows <- lapply(models, function(m) {
   
-  df_m <- effects_clean %>% filter(model == m)
+  df_m <- effects_clean %>%
+    filter(model == m)
+  
+  plot_title <- title_df %>%
+    filter(model == m) %>%
+    pull(title)
   
   p_fixed <- plot_effects(df_m, "fixed") +
-    ggtitle(m) +
-    theme(plot.title = element_text(size = 10, face = "bold"))
+    ggtitle(plot_title) +
+    theme(plot.title = element_text(
+        size = 10,
+        face = "bold")
+    )
   
   p_random <- plot_effects(df_m, "random")
   
-  p_fixed + p_random + plot_layout(widths = c(1, 1.2))
+  p_fixed + p_random +
+    plot_layout(widths = c(1, 1.2))
 })
 
-final_plot <- wrap_plots(plot_rows, ncol = 1)
+final_plot <- wrap_plots(plot_rows, ncol = 2)
 final_plot
 
-ggsave(
-  "figures/subsites_model_effects_caterpillar.png",
-  final_plot,
-  width = 12,
-  height = 30,   # tall because lots of rows
-  dpi = 300
+ggsave("figures/models_effects_caterpillar.png",
+  final_plot,width = 12,height = 10,dpi = 300
 )
 
 
 
+
+## to run with alone and full models
 
 eff<- effects_clean %>% 
   filter(type == "fixed") %>%
@@ -316,569 +357,184 @@ ggsave(
 
 
 ## effect figure #####
+### interaction model #####
 
-mod <- readRDS("output/models/brm_nb_dt1_full_c.rds")
-dt<- read.csv("output/dt1.csv")
-
-dt$site <- as.factor(dt$site)
-dt$year <- as.factor(dt$year)
-dt$n_adu_log_c     <- scale(dt$n_adu_log, scale = FALSE)
-dt$mean_sett_log_c <- scale(dt$mean_sett_log, scale = FALSE)
-dt$R_log10_c       <- scale(dt$R_log10, scale = FALSE)
-dt$Dc            <- scale(dt$D, scale = FALSE)
-dt$n_adu_log_s     <- scale(dt$n_adu_log)
-dt$mean_sett_log_s <- scale(dt$mean_sett_log)
-dt$R_log10_s       <- scale(dt$R_log10)
-dt$Ds            <- scale(dt$D)
-
-
-# adults
-ma <-readRDS("output/models/brm_nb_dt1_a_c.rds")
-pred_adu <- data.frame(
-  n_adu_log_c = seq(min(dt$n_adu_log_c),max(dt$n_adu_log_c),length.out = 500),
-  R_log10_c = 0,
-  Dc = 0,
-  mean_sett_log_c = 0)
-
-fit_adu <- fitted(
-  mod,
-  newdata = pred_adu,
-  re_formula = NA,
-  summary = TRUE
-)
-fit_adu2 <- fitted(
-  ma,
-  newdata = pred_adu,
-  re_formula = NA,
-  summary = TRUE
-)
-
-pred_adu$estimate <- fit_adu[, "Estimate"]
-pred_adu$lower    <- fit_adu[, "Q2.5"]
-pred_adu$upper    <- fit_adu[, "Q97.5"]
-
-pred_adu$estimate2 <- fit_adu2[, "Estimate"]
-pred_adu$lower2    <- fit_adu2[, "Q2.5"]
-pred_adu$upper2    <- fit_adu2[, "Q97.5"]
-
-a <- ggplot() +
-  # observed data
-  geom_jitter(
-    data = dt,
-    aes(x = n_adu_log_c, y = n_juv),
-    alpha = 0.08,
-    size = 1.8,
-    col = "darkorchid4"
-  ) +
+make_interaction_plot <- function(mod_file, dt_file, outfile){
   
-  # confidence interval
-  geom_ribbon(
-    data = pred_adu,
-    aes(
-      x = n_adu_log_c,
-      ymin = lower,
-      ymax = upper
+  mod <- readRDS(mod_file)
+  dt  <- read.csv(dt_file)
+  dt$site <- factor(dt$site)
+  dt$year <- factor(dt$year)
+  dt$n_adu_log_c     <- scale(dt$n_adu_log, scale = FALSE)
+  dt$mean_sett_log_c <- scale(dt$mean_sett_log, scale = FALSE)
+  dt$R_log10_c       <- scale(dt$R_log10, scale = FALSE)
+  dt$Dc              <- scale(dt$D, scale = FALSE)
+  
+  make_panel <- function(var, xlabel){
+    
+    pred_grid <- expand.grid(year = levels(dt$year),
+      value = seq( min(dt[[var]], na.rm = TRUE),max(dt[[var]], na.rm = TRUE),length.out = 500))
+    
+    for (p in preds){pred_grid[[p]] <- 0}
+    pred_grid[[var]] <- pred_grid$value
+    pred_grid$value <- NULL
+    
+    fit <- fitted(mod,newdata = pred_grid, re_formula = NA,summary = TRUE)
+    
+    pred_grid$estimate <- fit[, "Estimate"]
+    pred_grid$lower    <- fit[, "Q2.5"]
+    pred_grid$upper    <- fit[, "Q97.5"]
+    
+    ggplot() +
+      geom_ribbon(data = pred_grid,
+        aes_string(x = var, fill = "year", ymin = "lower", ymax = "upper"),
+        alpha = 0.2) +
+      geom_jitter(data = dt,
+        aes_string(x = var,y = "n_juv",colour = "year"),
+        alpha = 0.12,size = 1.8) +
+      geom_line(data = pred_grid,
+        aes_string(x = var,y = "estimate",colour = "year"),
+        linewidth = 1.1,alpha = 0.7) +
+      theme_classic(base_size = 14) +
+      scale_color_manual(values = c("#B19CD9", "#3A2767")) +
+      scale_fill_manual(values = c("#B19CD9", "#3A2767")) +
+      labs(x = xlabel, y = "Juvenile abundance") +
+      theme(
+        axis.text = element_text(colour = "black"),
+        panel.border = element_blank())
+  }
+  
+  a_int <- make_panel( "n_adu_log_c","Adult abundance (log, centered)")
+  d_int <- make_panel("Dc", "Fractal dimension")
+  r_int <- make_panel("R_log10_c","Surface rugosity (log10, centered)")
+  s_int <- make_panel("mean_sett_log_c","Average settlers (log, centered)")
+  
+  p <- ((a_int + d_int) /(r_int + s_int))/(e+ d)+
+    plot_layout(guides = "collect") &
+    theme(legend.position = "bottom")
+  
+  ggsave( outfile,p, width = 10,height = 8)
+  
+  return(p)
+}
+
+
+scales <- data.frame(
+  mod = c( "output/models/brm_nb_dt1_full_c_int.rds","output/models/brm_nb_dt2_full_c_int.rds",
+    "output/models/brm_nb_dt4_full_c_int.rds","output/models/brm_nb_dt5_full_c_int.rds"),
+  dt = c("output/dt1.csv","output/dt2.csv","output/dt4.csv","output/dt50.csv"),
+  out = c("figures/interaction_panels_dt1.pdf","figures/interaction_panels_dt2.pdf",
+    "figures/interaction_panels_dt4.pdf","figures/interaction_panels_dt50.pdf"))
+
+preds <- c("n_adu_log_c","mean_sett_log_c","R_log10_c","Dc")
+
+for(i in seq_len(nrow(scales))) {
+  make_interaction_plot(
+    mod_file = scales$mod[i],
+    dt_file  = scales$dt[i],
+    outfile  = scales$out[i]
+  )
+}
+
+mod_list <- c("brm_nb_dt1_full_c_int","brm_nb_dt2_full_c_int",
+              "brm_nb_dt4_full_c_int","brm_nb_dt5_full_c_int")
+
+
+for(m in mod_list) {
+df_m <- effects_clean %>%
+  filter(model == m) %>%
+  mutate(
+    term_label = recode(
+      term,
+      "adults (log)" = "Adult abundance",
+      "settlers (log)" = "Average settlers",
+      "R log10" = "Surface rugosity",
+      "D" = "Fractal dimension",
+      "year2023:adults (log)" = "Year × Adult abundance",
+      "year2023:settlers (log)" = "Year × Average settlers",
+      "year2023:R log10" = "Year × Surface rugosity",
+      "year2023:D" = "Year × Fractal dimension",
+      "year2023" = "Year (2023)"
     ),
-    #fill = "darkorchid1",
-    alpha = 0.2
-  ) +
-  
-  # fitted model
-  geom_line(
-    data = pred_adu,
-    aes(x = n_adu_log_c, y = estimate),
-    linewidth = 1.1,
-    alpha = 0.7
-    #col = "darkorchid1"
-  ) +
-  
-  # confidence interval
-  geom_ribbon(
-    data = pred_adu,
-    aes(
-      x = n_adu_log_c,
-      ymin = lower2,
-      ymax = upper2
-    ),
-    fill = "orchid",
-    alpha = 0.1
-  ) +
-  theme_classic(base_size = 14) +
-  scale_colour_manual(
-    name = "Fitted model",
-    values = c(
-      "full model" = "black",
-      "one predictor model" = "orchid"
+    effect_type = if_else(
+      grepl(":", term),
+      "Interaction",
+      "Main effect"
     )
-  ) +
-  coord_cartesian(ylim = c(0, 120))+
-  # fitted model
-  geom_line(
-    data = pred_adu,
-    aes(x = n_adu_log_c, y = estimate2),
-    linewidth = 1.1,
-    alpha = 0.7,
-    col = "orchid"
-  ) +
-  
-  
-  
-  labs(
-    x = "Adult abundance (log-centered)",
-    y = "Juvenile abundance"
-  ) +
-  
-  theme_classic(base_size = 14) +
-  
-  theme(
-    axis.text = element_text(colour = "black"),
-    panel.border = element_blank(),
-    legend.position = "none"
   )
 
+df_m <- df_m %>%
+  arrange(desc(effect_type == "Interaction"),desc(mean)) %>%
+  mutate(term_label = factor(term_label,levels = rev(term_label))) %>%
+  filter(type == "fixed")
 
-# R
-mr <-readRDS("output/models/brm_nb_dt1_R_c.rds")
-pred_R <- data.frame(
-  n_adu_log_c = 0,
-  R_log10_c = seq(min(dt$R_log10_c),max(dt$R_log10_c),length.out = 500),
-  Dc = 0,
-  mean_sett_log_c = 0)
-
-fit_r <- fitted(
-  mod,
-  newdata = pred_R,
-  re_formula = NA,
-  summary = TRUE
-)
-fit_r2 <- fitted(
-  mr,
-  newdata = pred_R,
-  re_formula = NA,
-  summary = TRUE
-)
-
-pred_R$estimate <- fit_r[, "Estimate"]
-pred_R$lower    <- fit_r[, "Q2.5"]
-pred_R$upper    <- fit_r[, "Q97.5"]
-
-pred_R$estimate2 <- fit_r2[, "Estimate"]
-pred_R$lower2    <- fit_r2[, "Q2.5"]
-pred_R$upper2    <- fit_r2[, "Q97.5"]
-
-r <- ggplot() +
-  # observed data
-  geom_point(
-    data = dt,
-    aes(x = R_log10_c, y = n_juv),
-    alpha = 0.08,
-    size = 1.8,
-    col = "darkorchid4"
-  ) +
-  
-  # confidence interval
-  geom_ribbon(
-    data = pred_R,
-    aes(
-      x = R_log10_c,
-      ymin = lower,
-      ymax = upper
-    ),
-    #fill = "darkorchid1",
-    alpha = 0.2
-  ) +
-  
-  # fitted model
-  geom_line(
-    data = pred_R,
-    aes(x = R_log10_c, y = estimate),
-    linewidth = 1.1,
-    alpha = 0.7
-    #col = "darkorchid1"
-  ) +
-  
-  # confidence interval
-  geom_ribbon(
-    data = pred_R,
-    aes(
-      x = R_log10_c,
-      ymin = lower2,
-      ymax = upper2
-    ),
-    fill = "orchid",
-    alpha = 0.1
-  ) +
-  
-  # fitted model
-  geom_line(
-    data = pred_R,
-    aes(x = R_log10_c, y = estimate2),
-    linewidth = 1.1,
-    alpha = 0.7,
-    col = "orchid"
-  ) +
-  theme_classic(base_size = 14) +
-  scale_colour_manual(
-    name = "Fitted model",
-    values = c(
-      "full model" = "black",
-      "one predictor model" = "orchid"
-    )
-  ) +
-  coord_cartesian(ylim = c(0, 120))+
-  labs(
-    x = "Surface rugosity (log-centered)",
-    y = "Juvenile abundance"
-  ) +
-  
-  theme_classic(base_size = 14) +
-  
-  theme(
-    axis.text = element_text(colour = "black"),
-    panel.border = element_blank(),
-    legend.position = "none"
+e <- ggplot(df_m, aes(x = mean, y = term_label)) +
+  geom_errorbarh(aes(xmin = l95, xmax = u95),
+                 height = 0, size = 0.4, alpha = 0.7) +
+  geom_errorbarh(aes(xmin = l80, xmax = u80),
+                 height = 0, size = 1.2) +
+  geom_point(size = 1.5) +
+  geom_vline(xintercept = 0,
+             linetype = "dashed",
+             color = "grey40") +
+  scale_x_continuous(limits = x_limits) +
+  labs(x = "Model effect sizes", y = NULL) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        axis.text.y = element_text(size = 10),
+        axis.text = element_text(size = 10),
+        axis.title = element_text(size = 14),
   )
 
+mod <- readRDS(paste0("output/models/", m, ".rds"))
+draws <- as_draws_df(mod)
+draws_long <- tibble(
+  `Adult abundance_2019` = draws$b_n_adu_log_c,
+  `Adult abundance_2023` = draws$b_n_adu_log_c + draws$`b_year2023:n_adu_log_c`,
+  `Average settlers_2019` = draws$b_mean_sett_log_c,
+  `Average settlers_2023` = draws$b_mean_sett_log_c + draws$`b_year2023:mean_sett_log_c`,
+  `Surface rugosity_2019` = draws$b_R_log10_c,
+  `Surface rugosity_2023` = draws$b_R_log10_c + draws$`b_year2023:R_log10_c`,
+  `Fractal dimension_2019` = draws$b_Dc,
+  `Fractal dimension_2023` = draws$b_Dc + draws$`b_year2023:Dc`) %>%
+  pivot_longer(everything(),
+    names_to = c("predictor", "year"), names_sep = "_", values_to = "estimate")
+
+draws_long$predictor <- factor(
+  draws_long$predictor,
+  levels = c("Adult abundance", "Average settlers", "Surface rugosity", "Fractal dimension"))
+
+d <- ggplot(draws_long, aes(x = estimate,y = predictor,fill = year)) +
+  stat_halfeye(alpha = 0.6, point_interval = median_qi,.width = c(.5, .8, .95),position = position_dodge(width = 0.4)) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  labs(y="Predictor", x = "Posterior draws estimates")+
+  scale_fill_manual(values = c("2019" = "#B19CD9","2023" = "#3A2767")) +
+  theme_classic(base_size = 14)
+
+p <- e + d 
+ggsave(paste0("figures/",m,"_effSizes_and_postDraws.pdf"),p, width = 8,height = 3.5)
+
+}
 
 
-# D
-md <-readRDS("output/models/brm_nb_dt1_D_c.rds")
-pred_D <- data.frame(
-  n_adu_log_c = 0,
-  R_log10_c = 0,
-  Dc = seq(min(dt$Dc),max(dt$Dc),length.out = 500),
-  mean_sett_log_c = 0)
 
-fit_D <- fitted(
-  mod,
-  newdata = pred_D,
-  re_formula = NA,
-  summary = TRUE
-)
-fit_D2 <- fitted(
-  md,
-  newdata = pred_D,
-  re_formula = NA,
-  summary = TRUE
-)
 
-pred_D$estimate <- fit_D[, "Estimate"]
-pred_D$lower    <- fit_D[, "Q2.5"]
-pred_D$upper    <- fit_D[, "Q97.5"]
 
-pred_D$estimate2 <- fit_D2[, "Estimate"]
-pred_D$lower2    <- fit_D2[, "Q2.5"]
-pred_D$upper2    <- fit_D2[, "Q97.5"]
+scales <- data.frame(
+  mod = c( "output/models/brm_nb_dt1_full_s_int.rds","output/models/brm_nb_dt2_full_s_int.rds",
+           "output/models/brm_nb_dt4_full_s_int.rds","output/models/brm_nb_dt5_full_s_int.rds"),
+  dt = c("output/dt1.csv","output/dt2.csv","output/dt4.csv","output/dt50.csv"),
+  out = c("figures/interaction_panels_dt1_s.pdf","figures/interaction_panels_dt2_s.pdf",
+          "figures/interaction_panels_dt4_s.pdf","figures/interaction_panels_dt50_s.pdf"))
 
-d <- ggplot() +
-  # observed data
-  geom_point(
-    data = dt,
-    aes(x = Dc, y = n_juv),
-    alpha = 0.08,
-    size = 1.8,
-    col = "darkorchid4"
-  ) +
-  
-  # confidence interval
-  geom_ribbon(
-    data = pred_D,
-    aes(
-      x = Dc,
-      ymin = lower,
-      ymax = upper
-    ),
-    #fill = "darkorchid1",
-    alpha = 0.2
-  ) +
-  
-  # fitted model
-  geom_line(
-    data = pred_D,
-    aes(x = Dc, y = estimate),
-    linewidth = 1.1,
-    alpha = 0.7
-    #col = "darkorchid1"
-  ) +
-  
-  # confidence interval
-  geom_ribbon(
-    data = pred_D,
-    aes(
-      x = Dc,
-      ymin = lower2,
-      ymax = upper2
-    ),
-    fill = "orchid",
-    alpha = 0.1
-  ) +
-  
-  # fitted model
-  geom_line(
-    data = pred_D,
-    aes(x = Dc, y = estimate2),
-    linewidth = 1.1,
-    alpha = 0.7,
-    col = "orchid"
-  ) +
-  theme_classic(base_size = 14) +
-  scale_colour_manual(
-    name = "Fitted model",
-    values = c(
-      "full model" = "black",
-      "one predictor model" = "orchid"
-    )
-  ) +
-  coord_cartesian(ylim = c(0, 120))+
-  labs(
-    x = "Fractal dimension (centered)",
-    y = "Juvenile abundance"
-  ) +
-  
-  theme_classic(base_size = 14) +
-  
-  theme(
-    axis.text = element_text(colour = "black"),
-    panel.border = element_blank(),
-    legend.position = "none"
+preds <- c("n_adu_log_s","mean_sett_log_s","R_log10_s","Ds")
+
+for(i in seq_len(nrow(scales))) {
+  make_interaction_plot(
+    mod_file = scales$mod[i],
+    dt_file  = scales$dt[i],
+    outfile  = scales$out[i]
   )
-
-  
-# S
-ms <-readRDS("output/models/brm_nb_dt1_s_c.rds")
-pred_s19 <- data.frame(
-  n_adu_log_c = 0,
-  R_log10_c = 0,
-  Dc = 0,
-  mean_sett_log_c = seq(min(dt$mean_sett_log_c),max(dt$mean_sett_log_c ),length.out = 500),
-  year = as.factor("2019")
-  )
-
-fit_s <- fitted(
-  mod,
-  newdata = pred_s,
-  re_formula = NA,
-  summary = TRUE
-)
-fit_s2 <- fitted(
-  ms,
-  newdata = pred_s,
-  re_formula = NA,
-  summary = TRUE
-)
-
-fit_s19 <- fitted(
-  ms,
-  newdata = pred_s,
-  re_formula = ~(1|year),
-  summary = TRUE
-)
-
-pred_s23 <- data.frame(
-  n_adu_log_c = 0,
-  R_log10_c = 0,
-  Dc = 0,
-  mean_sett_log_c = seq(min(dt$mean_sett_log_c),max(dt$mean_sett_log_c ),length.out = 500),
-  year = as.factor("2023")
-)
-
-fit_s23 <- fitted(
-  ms,
-  newdata = pred_s23,
-  re_formula = ~(1|year),
-  summary = TRUE
-)
-
-pred_s$estimate <- fit_s[, "Estimate"]
-pred_s$lower    <- fit_s[, "Q2.5"]
-pred_s$upper    <- fit_s[, "Q97.5"]
-
-pred_s$estimate19 <- fit_s19[, "Estimate"]
-pred_s$lower19    <- fit_s19[, "Q2.5"]
-pred_s$upper19    <- fit_s19[, "Q97.5"]
-
-pred_s$estimate2 <- fit_s2[, "Estimate"]
-pred_s$lower2    <- fit_s2[, "Q2.5"]
-pred_s$upper2    <- fit_s2[, "Q97.5"]
-
-pred_s$estimate23 <- fit_s23[, "Estimate"]
-pred_s$lower23   <- fit_s23[, "Q2.5"]
-pred_s$upper23    <- fit_s23[, "Q97.5"]
+}
 
 
-s2 <- ggplot() +
-  # observed data
-  geom_jitter(
-    data = dt,
-    aes(x = mean_sett_log_c, y = n_juv,   col = year),
-    alpha = 0.08,
-    size = 1.8
-  ) +
-  
-  # confidence interval
-  geom_ribbon(
-    data = pred_s,
-    aes(
-      x = mean_sett_log_c,
-      ymin = lower,
-      ymax = upper
-    ),
-    #fill = "darkorchid1",
-    alpha = 0.2
-  ) +
-  
-  # fitted model
-  geom_line(
-    data = pred_s,
-    aes(x = mean_sett_log_c, y = estimate),
-    linewidth = 1.1,
-    alpha = 0.7
-    #col = "darkorchid1"
-  ) +
-  
-  # confidence interval
-  geom_ribbon(
-    data = pred_s,
-    aes(
-      x = mean_sett_log_c,
-      ymin = lower2,
-      ymax = upper2
-    ),
-    fill = "orchid",
-    alpha = 0.1
-  ) +
-  
-  # fitted model
-  geom_line(
-    data = pred_s,
-    aes(x = mean_sett_log_c, y = estimate2),
-    linewidth = 1.1,
-    alpha = 0.7,
-    col = "orchid"
-  ) +
-  
-  geom_line(
-    data = pred_s,
-    aes(x = mean_sett_log_c, y = estimate19),
-    linewidth = 1.1,
-    alpha = 0.7,
-    col = "blue"
-  ) +
-  
-  geom_line(
-    data = pred_s,
-    aes(x = mean_sett_log_c, y = estimate23),
-    linewidth = 1.1,
-    alpha = 0.7,
-    col = "green"
-  ) +
-  
-  
-  labs(
-    x = "mean settlers (log-centered)",
-    y = "Juvenile abundance"
-  ) +
-  
-  theme_classic(base_size = 14) +
-  # scale_colour_manual(
-  #   name = "Fitted model",
-  #   values = c(
-  #     "full model" = "black",
-  #     "one predictor model" = "orchid"
-  #   )
-  # ) +
-  coord_cartesian(ylim = c(0, 120))+
-  theme(
-    axis.text = element_text(colour = "black"),
-    panel.border = element_blank(),
-    legend.position = "none"
-  )
-
-((a + d) /
-    (r + s)) +
-  plot_layout(guides = "collect") &
-  theme(legend.position = "bottom")
-
-
-
-### R vs D
-
-
-pred_grid <- expand.grid(
-  R_log10_c = seq(
-    min(dt$R_log10_c),
-    max(dt$R_log10_c),
-    length.out = 500
-  ),
-  Dc = seq(
-    min(dt$Dc),
-    max(dt$Dc),
-    length.out = 500
-  )
-)
-
-pred_grid$n_adu_log_c    <- 0
-pred_grid$mean_sett_log_c <- 0
-
-fit <- fitted(
-  mod,
-  newdata = pred_grid,
-  re_formula = NA,
-  summary = TRUE
-)
-
-pred_grid$estimate <- fit[, "Estimate"]
-pred_grid$lower    <- fit[, "Q2.5"]
-pred_grid$upper    <- fit[, "Q97.5"]
-
-ggplot(pred_grid,
-       aes(R_log10_c, Dc, fill = estimate)) +
-  geom_raster() +
-  scale_fill_viridis_c(name = "Predicted\nn_juv") +
-  coord_equal() +
-  theme_bw()
-
-
-library(sf)
-
-# observed points
-obs <- st_as_sf(
-  dt,
-  coords = c("R_log10_c", "Dc"),
-  crs = NA
-)
-
-# convex hull
-hull <- obs |>
-  st_union() |>
-  st_convex_hull()
-
-# prediction points
-pred_pts <- st_as_sf(
-  pred_grid,
-  coords = c("R_log10_c", "Dc"),
-  crs = NA
-)
-
-# keep only points inside hull
-inside <- st_within(pred_pts, hull, sparse = FALSE)[,1]
-
-pred_grid$estimate_clip <- pred_grid$estimate
-pred_grid$estimate_clip[!inside] <- NA
-
-ggplot(pred_grid,
-       aes(R_log10_c, Dc, fill = estimate_clip, alpha = 0.3)) +
-  geom_raster() +
-  geom_point(
-    data = dt,
-    aes(x = R_log10_c, y = Dc, col = n_juv_log),
-    inherit.aes = FALSE,
-    pch = 16,
-    size = 3,
-    alpha = 0.8
-  ) +
-  scale_fill_viridis_c(
-    name = "Predicted\nn_juv",
-    na.value = NA
-  ) +
-  theme_minimal()

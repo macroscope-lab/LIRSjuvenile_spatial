@@ -204,8 +204,56 @@ for (path in paths) {
   
 }
 
+paths <- "output/dt50.csv"
+
+for (path in paths) {
+  dt <- read.csv(path)
+  dt$site <- as.factor(dt$site)
+  dt$year <- as.factor(dt$year)
+  # dt$n_adu_log_c     <- scale(dt$n_adu_log, scale = FALSE)
+  # dt$mean_sett_log_c <- scale(dt$mean_sett_log, scale = FALSE)
+  # dt$R_log10_c       <- scale(dt$R_log10, scale = FALSE)
+  # dt$Dc            <- scale(dt$D, scale = FALSE)
+  # 
+  dt$n_adu_log_s     <- scale(dt$n_adu_log)[,1]
+  dt$mean_sett_log_s <- scale(dt$mean_sett_log)[,1]
+  dt$R_log10_s       <- scale(dt$R_log10)[,1]
+  dt$Ds            <- scale(dt$D)[,1]
+  
+  
+  # fitnb_full_c_int <- brm(
+  #   n_juv ~ year*(n_adu_log_c + mean_sett_log_c + R_log10_c + Dc) + (1 | site),
+  #   data = dt,
+  #   iter = 10000, warmup = 2000, thin = 5,
+  #   control = list(adapt_delta = 0.99, max_treedepth = 15),
+  #   chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+  #   family = negbinomial())
+  # saveRDS(fitnb_full_c_int,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_full_c_int.rds"))
+  # 
+  
+  fitnb_full_s_int <- brm(
+    n_juv ~ year*(n_adu_log_s + mean_sett_log_s + R_log10_s + Ds) + (1 | site),
+    data = dt,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.99, max_treedepth = 15),
+    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+    family = negbinomial())
+  saveRDS(fitnb_full_s_int,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_full_s_int.rds"))
+  
+  
+  # fitnb_full_c_halfint <- brm(
+  #   n_juv ~ n_adu_log_c + year*mean_sett_log_c + R_log10_c + Dc + (1 | site),
+  #   data = dt,
+  #   iter = 10000, warmup = 2000, thin = 5,
+  #   control = list(adapt_delta = 0.99, max_treedepth = 15),
+  #   chains = 4, cores = 2, threads = threading(1), backend = "cmdstanr",
+  #   family = negbinomial())
+  # saveRDS(fitnb_full_c_halfint,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_full_c_halfint.rds"))
+  # 
+}
 
 
+#####run 19th June ######
 for (path in paths) {
   dt <- read.csv(path)
   dt$site <- as.factor(dt$site)
@@ -215,28 +263,65 @@ for (path in paths) {
   dt$R_log10_c       <- scale(dt$R_log10, scale = FALSE)
   dt$Dc            <- scale(dt$D, scale = FALSE)
   
-  fitnb_full_c_int <- brm(
-    n_juv ~ year*(n_adu_log_c + mean_sett_log_c + R_log10_c + Dc) + (1 | site),
+  fitnb_full_c_aint_ry <- brm(
+    n_juv ~ n_adu_log_c*(mean_sett_log_c + R_log10_c + Dc) + (1|year) + (1 | site),
     data = dt,
     iter = 10000, warmup = 2000, thin = 5,
     control = list(adapt_delta = 0.99, max_treedepth = 15),
-    chains = 4, cores = 2, threads = threading(1), backend = "cmdstanr",
+    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
     family = negbinomial())
-  saveRDS(fitnb_full_c_int,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_full_c_int.rds"))
+  saveRDS(fitnb_full_c_aint_ry,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_full_c_aint_ry.rds"))
   
-  fitnb_full_c_halfint <- brm(
-    n_juv ~ n_adu_log_c + year*mean_sett_log_c + R_log10_c + Dc + (1 | site),
+  fitnb_full_c_aint <- brm(
+    n_juv ~ n_adu_log_c*(mean_sett_log_c + R_log10_c + Dc + year) + (1 | site),
     data = dt,
     iter = 10000, warmup = 2000, thin = 5,
     control = list(adapt_delta = 0.99, max_treedepth = 15),
-    chains = 4, cores = 2, threads = threading(1), backend = "cmdstanr",
+    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
     family = negbinomial())
-  saveRDS(fitnb_full_c_halfint,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_full_c_halfint.rds"))
+  saveRDS(fitnb_full_c_int,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_full_c_aint.rds"))
   
-
-  
+  fitnb_full_c_ayint <- brm(
+    n_juv ~ n_adu_log_c*(mean_sett_log_c + R_log10_c + Dc + year) + (1 | site),
+    data = dt,
+    iter = 10000, warmup = 2000, thin = 5,
+    control = list(adapt_delta = 0.99, max_treedepth = 15),
+    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
+    family = negbinomial())
+  saveRDS(fitnb_full_c_ayint,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_full_c_ayint.rds"))
 }
-  
+
+mod1_aint <- readRDS("output/models/brm_nb_dt1_full_c_aint.rds")
+mod1_aint_yr <- readRDS("output/models/brm_nb_dt1_full_c_aint_ry.rds")
+mod1_ayint <- readRDS("output/models/brm_nb_dt1_full_c_ayint.rds")
+
+mod2_aint <- readRDS("output/models/brm_nb_dt2_full_c_aint.rds")
+mod2_aint_yr <- readRDS("output/models/brm_nb_dt2_full_c_aint_ry.rds")
+mod2_ayint <- readRDS("output/models/brm_nb_dt2_full_c_ayint.rds")
+
+mod4_aint <- readRDS("output/models/brm_nb_dt4_full_c_aint.rds")
+mod4_aint_yr <- readRDS("output/models/brm_nb_dt4_full_c_aint_ry.rds")
+mod4_ayint <- readRDS("output/models/brm_nb_dt4_full_c_ayint.rds")
+
+mod5_aint <- readRDS("output/models/brm_nb_dt5_full_c_aint.rds")
+mod5_aint_yr <- readRDS("output/models/brm_nb_dt5_full_c_aint_ry.rds")
+mod5_ayint <- readRDS("output/models/brm_nb_dt5_full_c_ayint.rds")
+
+mod5_int_s <- readRDS("output/models/brm_nb_dt5_full_s_int.rds")
+mod1_int_s <- readRDS("output/models/brm_nb_dt1_full_s_int.rds")
+mod2_int_s <- readRDS("output/models/brm_nb_dt2_full_s_int.rds")
+mod4_int_s <- readRDS("output/models/brm_nb_dt4_full_s_int.rds")
+
+
+summary(mod1_aint)
+summary(mod1_ayint)
+summary(mod1_aint)
+
+
+
+
+
+###########
 
 ## keep centered and fix not converging ones
 nb50_full <- readRDS("output/models/brm_nb_dt5_full_c.rds")
@@ -385,105 +470,6 @@ for (path in paths) {
     chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
     family = negbinomial())
   saveRDS(fitnb_r,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_R_c.rds"))
-
-
-  fitnb_a19 <- brm(
-    n_juv ~ n_adu_log_c + (1 | site),
-    data = dt19,
-    iter = 10000, warmup = 2000, thin = 5,
-    control = list(adapt_delta = 0.98, max_treedepth = 15),
-    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
-    family = negbinomial())
-  saveRDS(fitnb_a19,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_a_c19.rds"))
-  
-  fitnb_s19 <- brm(
-    n_juv ~ mean_sett_log_c + (1 | site),
-    data = dt19,
-    iter = 10000, warmup = 2000, thin = 5,
-    control = list(adapt_delta = 0.98, max_treedepth = 15),
-    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
-    family = negbinomial())
-  saveRDS(fitnb_s19,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_s_c19.rds"))
-  
-  fitnb_r19 <- brm(
-    n_juv ~ R_log10_c + (1 | site),
-    data = dt19,
-    iter = 10000, warmup = 2000, thin = 5,
-    control = list(adapt_delta = 0.98, max_treedepth = 15),
-    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
-    family = negbinomial())
-  saveRDS(fitnb_r19,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_R_c19.rds"))
-  
-  fitnb_d19 <- brm(
-    n_juv ~ Dc + (1 | site),
-    data = dt19,
-    iter = 10000, warmup = 2000, thin = 5,
-    control = list(adapt_delta = 0.98, max_treedepth = 15),
-    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
-    family = negbinomial())
-  saveRDS(fitnb_d19,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_D_c19.rds"))
-  
-  fitnb_null19 <- brm(
-    n_juv ~ (1 | site),
-    data = dt19,
-    iter = 10000, warmup = 2000, thin = 5,
-    control = list(adapt_delta = 0.98, max_treedepth = 15),
-    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
-    family = negbinomial())
-  saveRDS(fitnb_null19,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_null_c19.rds"))
-  
-  fitnb_a23 <- brm(
-    n_juv ~ n_adu_log_c + (1 | site),
-    data = dt23,
-    iter = 10000, warmup = 2000, thin = 5,
-    control = list(adapt_delta = 0.98, max_treedepth = 15),
-    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
-    family = negbinomial())
-  saveRDS(fitnb_a23,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_a_c23.rds"))
-  
-  fitnb_s23 <- brm(
-    n_juv ~ mean_sett_log_c + (1 | site),
-    data = dt23,
-    iter = 10000, warmup = 2000, thin = 5,
-    control = list(adapt_delta = 0.98, max_treedepth = 15),
-    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
-    family = negbinomial())
-  saveRDS(fitnb_s23,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_s_c23.rds"))
-  
-  fitnb_r23 <- brm(
-    n_juv ~ R_log10_c + (1 | site),
-    data = dt23,
-    iter = 10000, warmup = 2000, thin = 5,
-    control = list(adapt_delta = 0.98, max_treedepth = 15),
-    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
-    family = negbinomial())
-  saveRDS(fitnb_r23,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_R_c23.rds"))
-  
-  fitnb_d23 <- brm(
-    n_juv ~ Dc + (1 | site),
-    data = dt23,
-    iter = 10000, warmup = 2000, thin = 5,
-    control = list(adapt_delta = 0.98, max_treedepth = 15),
-    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
-    family = negbinomial())
-  saveRDS(fitnb_d23,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_D_c23.rds"))
-  
-  fitnb_null23 <- brm(
-    n_juv ~ (1 | site),
-    data = dt23,
-    iter = 10000, warmup = 2000, thin = 5,
-    control = list(adapt_delta = 0.98, max_treedepth = 15),
-    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
-    family = negbinomial())
-  saveRDS(fitnb_null23,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_null_c23.rds"))
-  fitnb_d <- brm(
-    n_juv ~ Dc + (1|year) + (1 | site),
-    data = dt,
-    iter = 10000, warmup = 2000, thin = 5,
-    control = list(adapt_delta = 0.98, max_treedepth = 15),
-    chains = 4, cores = 4, threads = threading(2), backend = "cmdstanr",
-    family = negbinomial())
-  saveRDS(fitnb_d,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_D_c.rds"))
   
   fitnb_null <- brm(
     n_juv ~ (1|year) + (1 | site),
@@ -543,12 +529,6 @@ saveRDS(fitnb50_R_c,"output/models/brm_nb_dt5_R_c.rds")
 
 plot(fitnb50_R_c)
 pp_check(fitnb50_R_c)
-
-
-
-
-
-
 
 
 
@@ -673,7 +653,7 @@ pp_check(fitnb50_R_c)
     family = negbinomial())
   saveRDS(fitnb_D,paste0("output/models/brm_nb_",str_sub(path, 8, 10),"_D.rds"))
   
-  }
+
 
 nb50_full <- readRDS("output/models/brm_nb_dt5_full_c.rds")
 nb1_full <- readRDS("output/models/brm_nb_dt1_full_c.rds")
@@ -978,4 +958,15 @@ ggplot(fixef_df, aes(x = reorder(term, Estimate), y = Estimate)) +
   theme_minimal()
 
 
+summary(mod1_aint_yr )
+summary(dt1)
+
+summary(mod5_aint_yr )
+summary(dt50)
+
+summary(mod2_aint_yr )
+summary(dt2)
+
+summary(mod4_aint_yr )
+summary(dt4)
 

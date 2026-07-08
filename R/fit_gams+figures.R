@@ -4,7 +4,9 @@ library(tidyverse)
 library(ggplot2)
 library(sf)
 library(terra)
-
+library(png)
+library(grid)
+library(ggdist)
 ## read tables 
 paths <- c("output/dt1.csv", "output/dt50.csv", "output/dt2.csv",
            "output/dt4.csv")
@@ -70,21 +72,28 @@ N3_circle <- crop(N3, circle)
 N3_circle <- mask(N3_circle, circle)
 
 png("figures/CountMap.png", width = 18, height = 18, unit = 'cm', res = 300)
-par(mar = c(6, 6, 2, 5), mgp = c(3.5, 1.5, 0))
+par(mar = c(6, 6, 2, 2))
 
-plot(N3_circle, asp=1, col=cols, axes=FALSE, box=FALSE, 
+plot(N3_circle, asp=1, col=cols, axes=FALSE, box=FALSE,  
      plg = list(title = "depth (m)", size = 0.3))
 
-points(ann_old, add = TRUE, col = "black", bg = "white", pch = 21, asp=1, cex = .8)
+points(ann_old, col = "black", bg = "white", pch = 21, asp=1, cex = .8)
 points(ann_new, col = "black", pch = 16, asp=1, cex = 1)
 plot(st_geometry(squares), add = TRUE,cex = 1.2)
 
-axis(1, at=seq(n3$lon-4, n3$lon+4, 2), labels=seq(0, 8, 2), line = 3)
-axis(1, at=seq(n3$lon-4, n3$lon+4, 0.5), labels=NA, line = 3)
+axis(1, at=seq(n3$lon-4, n3$lon+4, 2), labels=seq(0, 8, 2), line = 2)
+axis(1, at=seq(n3$lon-4, n3$lon+4, 0.5), labels=NA, line = 2)
 axis(2, at=seq(n3$lat-4, n3$lat+4, 2), labels=seq(0, 8, 2), line = 4)
 axis(2, at=seq(n3$lat-4, n3$lat+4, 0.5), labels=NA, line = 4)
 text(labels="a", n3$lon-7,n3$lat+7, adj=0, font = 2, cex = 1.5)
 dev.off()
+
+
+
+img <- png::readPNG("figures/CountMap.png")
+map_plot <- wrap_elements(
+  rasterGrob(img, interpolate = TRUE)
+)
 
 
 r_df <- as.data.frame(
@@ -121,16 +130,16 @@ p
 source("https://gist.githubusercontent.com/benmarwick/2a1bb0133ff568cbe28d/raw/fb53bd97121f7f9ce947837ef1a4c65a73bffb3f/geom_flat_violin.R")
 
 ## 50x50 grid
-r50 <- ggplot(data = tab05, aes(x = rec, y = sqrt(New), fill = rec)) +
+r50 <- ggplot(data = dt, aes(x = site, y = n_juv, fill = site)) +
   geom_violin( alpha = .3, scale =  "width", width = .6) +
-  geom_boxplot(aes(y =sqrt(New), fill = rec), color = "black",
-               width = 0.1, alpha = 0.4, guide = FALSE, outlier.shape = NA) +
+  geom_boxplot(aes(y = n_juv, fill = site), color = "black",
+               width = 0.1, alpha = 0.4, outlier.shape = NA) +
   #expand_limits(x = 1) +
   #coord_flip() + # flip or not?
-  scale_color_viridis_d("site",labels = unique(tab2$rec)) +
-  scale_fill_viridis_d("site",labels = unique(tab2$rec)) +
+  scale_color_viridis_d("site",labels = unique(dt$site)) +
+  scale_fill_viridis_d("site",labels = unique(dt$site)) +
   theme_bw() +
-  labs(x ="reef site", y = "Recruits per grid cell (root squared)")+
+  labs(x ="reef site", y = "Juveniles per grid cell ")+
   theme(panel.border = element_blank(),
         panel.grid.minor = element_blank(),
         panel.grid.major = element_blank(),
@@ -165,6 +174,7 @@ a50 <- ggplot(data = tab05, aes(x = rec, y = sqrt(Old), fill = rec)) +
         legend.text = element_text(size = 14))
 a50
 ggsave("figs/AduCount50_sqrt.png",width = 13, height = 9, units = 'cm')
+
 
 ###### raw data pair plots ####
 
@@ -448,3 +458,60 @@ D.pred.05 <- seq(min(tab05_trans$D), max(tab05_trans$D), length=grid.lines)
 D.pred.05 <- seq(min(tab05_trans$D), max(tab05_trans$D), length=grid.lines)
 D.pred.05 <- seq(min(tab05_trans$D), max(tab05_trans$D), length=grid.lines)
 R.pred.05 <- seq(min(tab05_trans$R_log10), max(tab05_trans$R_log10), length=grid.lines)
+
+
+
+
+
+
+
+###### raincloud plots ########
+
+dt$year <- as.factor(dt$year)
+dt$site <- as.factor(dt$site)
+dt$log_n_juv <- log1p(dt$n_juv)
+
+jab <- ggplot(
+dt,
+aes(
+x = log_n_juv,
+y = site,
+fill = year
+)
+) +
+geom_density_ridges(
+aes(color = year),
+alpha = 0.6,
+scale = 0.9,
+rel_min_height = 0.01,
+jittered_points = TRUE,
+position = position_points_jitter(
+width = 0.15,
+height = 0
+),
+point_shape = "|",
+point_size = 2,
+point_alpha = 0.4
+) +
+scale_fill_manual(
+values = c(
+"2019" = "#B19CD9",
+"2023" = "#3A2767"
+)
+) +
+scale_color_manual(
+values = c(
+"2019" = "#B19CD9",
+"2023" = "#3A2767"
+)
+) +
+theme_classic(base_size = 14) +
+labs(
+x = "Juvenile abundance log",
+y = "Site",
+fill = "Year"
+)
+
+
+map_plot /jab
+
