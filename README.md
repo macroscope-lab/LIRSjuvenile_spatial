@@ -2,28 +2,23 @@
 Code and analysis for the paper on juvenile recruitment patterns and their links to adult presence and structural complexity. It stems from VB thesis (Chapter 4).
 
 ## Data used
-- RR coral annotation from november 2022
-- RR DEMs and (orhos) for all sites from november 2022
-- settlement tiles from 2022
+- RR coral annotation for november 2023 and november 2019
+- RR DEMs and (orhos) for 15 sites for november 2023 and november 2019
+- settlement tiles from jan 2023 and jan 2019
 
 ## Variables and hyphothesis
-Adult density: competition or facilitation? (+ or - effects)
+Adult density: competition or facilitation? (+ or - effects) which interacts with other variables
 
 Rugosity: hooks and crannies are nice habitats for a coral (+)
 
-Fractal dimension: a fractal surface increases friction and facilitate initial larval settlement (+)
+Fractal dimension: a fractal surface increases friction and facilitates initial larval settlement (+)
 
-Spatial autocorrelation: patterns are similar for same sites and closer reefs
+Settlement tile recruit densities: the more recruits, the more juveniles found (+)
 
-Settlement tile recruit densities: the more recruit te more juveniles found (+)
-
-## Model and hyphothesis
+## Model and hypothesis
 Gridding reef area into continuous squares of different sizes (50cm, 1m, 2m), computing variables and fitting per each size:
 
-n_juv(nov2022) ~ n_adu(nov2022) + R(nov2022) + D(nov2022) + tile_recruitment(jan2022)+ s(centroid coords) + s(site coords) 
+n_juv ~ n_adu*(R+ D+ settlers)+ (1|site) + (1|year)
 
-Trying SOAP to accoun for island boundary - SOAP should be well integrated into mgcv (gams), might be trickier to implement in brms but not impossible.
-
-### Ideally also showing 
-Realized juvenile settlement areas VS overall means and densities in RR by clipping areas around each juvenile and get R, D, n_adu, n_juv densities and comparing those distributions to overal means.
+Tried SOAP to account for island boundary - results hard to interpret and qualitatively not different from site as random effect,
 
