@@ -20,5 +20,6 @@ Gridding reef area into continuous squares of different sizes (50cm, 1m, 2m), co
 
 n_juv ~ n_adu*(R+ D+ settlers)+ (1|site) + (1|year)
 
-Tried SOAP to account for island boundary - results hard to interpret and qualitatively not different from site as random effect,
+## Comment
+Tried SOAP to account for island boundary - results hard to interpret and qualitatively not different from site as random effect.
 
