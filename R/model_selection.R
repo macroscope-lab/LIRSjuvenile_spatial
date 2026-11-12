@@ -134,7 +134,7 @@ model2_files <- c("output/models/brm_nb_dt2_full_c_aint.rds","output/models/brm_
 model4_files <- c("output/models/brm_nb_dt4_full_c_aint.rds","output/models/brm_nb_dt4_full_c_int.rds", "output/models/brm_nb_dt4_full_c.rds")
 
 
-model_files <- c(model1_files, model2_files, model4_files)
+model_files <- c(model1_files, model2_files, model5_files)
 
 
 model_files <- c("output/models/brm_nb_dt5_full_c_aint_ry.rds", "output/models/brm_nb_dt5_full_c_aint.rds",
